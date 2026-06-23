@@ -20,7 +20,23 @@ Thumbs.db
 .agents/
 
 # Project ignores requested by user
-/docs
+docs/*/
 scripts/
 
+# Java and Spring Boot (Backend)
+**/target/
+**/build/
+**/.gradle/
+*.class
+*.jar
+*.war
+*.ear
 
+# Eclipse IDE files
+.settings/
+.project
+.classpath
+bin/
+*.sql
+docs/
+*.md
