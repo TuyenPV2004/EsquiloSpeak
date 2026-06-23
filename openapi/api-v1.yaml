@@ -1,0 +1,554 @@
+openapi: 3.0.3
+info:
+  title: EsquiloSpeak API
+  description: API specifications for the EsquiloSpeak MVP language learning app.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local API Gateway
+paths:
+  /app-config:
+    get:
+      summary: Get application configuration
+      description: Returns configuration details, feature flags, and supported locales/languages.
+      responses:
+        '200':
+          description: Successful configuration retrieval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  latestAppVersion:
+                    type: string
+                    example: "1.0.0"
+                  forceUpdate:
+                    type: boolean
+                    example: false
+                  supportedLanguages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code:
+                          type: string
+                          example: "en"
+                        name:
+                          type: string
+                          example: "English"
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /auth/guest:
+    post:
+      summary: Register/Authenticate anonymous guest user
+      description: Creates a new user record tied to a device identifier or returns the existing session token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - deviceId
+              properties:
+                deviceId:
+                  type: string
+                  example: "device_abc123"
+      responses:
+        '200':
+          description: Successfully authenticated guest user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  userId:
+                    type: string
+                    example: "usr_998877"
+                  deviceId:
+                    type: string
+                    example: "device_abc123"
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /onboarding:
+    post:
+      summary: Save initial user target/onboarding details
+      description: Saves goals, daily learning duration, and self-assessed level during onboarding.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - targetLanguage
+                - sourceLanguage
+                - dailyGoalMinutes
+                - selfAssessedLevel
+              properties:
+                userId:
+                  type: string
+                  example: "usr_998877"
+                targetLanguage:
+                  type: string
+                  example: "en"
+                sourceLanguage:
+                  type: string
+                  example: "vi"
+                dailyGoalMinutes:
+                  type: integer
+                  example: 15
+                selfAssessedLevel:
+                  type: string
+                  enum: [A0, A1, A2]
+                  example: "A0"
+      responses:
+        '200':
+          description: Onboarding data saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  userId:
+                    type: string
+                    example: "usr_998877"
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /courses:
+    get:
+      summary: List available courses
+      description: Returns all language courses available for enrollment.
+      responses:
+        '200':
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    courseId:
+                      type: string
+                      example: "en_for_vi"
+                    title:
+                      type: string
+                      example: "Tiếng Anh cho người Việt"
+                    sourceLanguage:
+                      type: string
+                      example: "vi"
+                    targetLanguage:
+                      type: string
+                      example: "en"
+                    difficulty:
+                      type: string
+                      example: "A0-A1"
+
+  /courses/{courseId}/home:
+    get:
+      summary: Course dashboard/home data
+      description: Get active unit, lessons, review status, and daily goals.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "en_for_vi"
+      responses:
+        '200':
+          description: Course homepage details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  courseId:
+                    type: string
+                    example: "en_for_vi"
+                  activeUnitId:
+                    type: string
+                    example: "unit_001"
+                  activeUnitTitle:
+                    type: string
+                    example: "Chào hỏi căn bản"
+                  progressPercent:
+                    type: integer
+                    example: 35
+                  lessons:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        lessonId:
+                          type: string
+                          example: "lesson_101"
+                        title:
+                          type: string
+                          example: "Xin chào và Tạm biệt"
+                        status:
+                          type: string
+                          enum: [locked, available, completed]
+                          example: "available"
+                  dueReviewCount:
+                    type: integer
+                    example: 5
+
+  /courses/{courseId}/lessons/{lessonId}:
+    get:
+      summary: Get lesson details and questions
+      description: Returns questions and assets within a lesson.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "en_for_vi"
+        - name: lessonId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "lesson_101"
+      responses:
+        '200':
+          description: Lesson details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lessonId:
+                    type: string
+                    example: "lesson_101"
+                  lessonVersionId:
+                    type: string
+                    example: "lesson_101_v1"
+                  title:
+                    type: string
+                    example: "Xin chào và Tạm biệt"
+                  questions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        questionId:
+                          type: string
+                          example: "q_201"
+                        questionVersionId:
+                          type: string
+                          example: "q_201_v1"
+                        type:
+                          type: string
+                          enum: [multiple_choice, listening, translate]
+                          example: "multiple_choice"
+                        prompt:
+                          type: string
+                          example: "Dịch từ: 'Hello'"
+                        audioUrl:
+                          type: string
+                          example: "http://localhost:8080/api/v1/media/hello.mp3"
+                        options:
+                          type: array
+                          items:
+                            type: string
+                          example: ["Xin chào", "Tạm biệt", "Cảm ơn"]
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /courses/{courseId}/attempts:
+    post:
+      summary: Submit question attempt
+      description: Records user answer to a question in a lesson for progress and review scheduler.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "en_for_vi"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttemptSubmitRequest'
+      responses:
+        '200':
+          description: Attempt processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isCorrect:
+                    type: boolean
+                    example: true
+                  correctAnswer:
+                    type: string
+                    example: "Xin chào"
+                  explanation:
+                    type: string
+                    example: "'Hello' dịch sang tiếng Việt nghĩa là 'Xin chào'."
+                  masteryScoreUpdated:
+                    type: integer
+                    example: 45
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /courses/{courseId}/reviews/due:
+    get:
+      summary: Get due reviews
+      description: Fetch list of items (vocabulary/sentences) scheduled for review today.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "en_for_vi"
+      responses:
+        '200':
+          description: Due reviews retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    reviewItemId:
+                      type: string
+                      example: "rev_item_001"
+                    type:
+                      type: string
+                      enum: [vocabulary, sentence, grammar_point, listening_item]
+                      example: "vocabulary"
+                    concept:
+                      type: string
+                      example: "Hello"
+                    hint:
+                      type: string
+                      example: "Lời chào hỏi ban đầu khi gặp mặt"
+
+  /courses/{courseId}/review-attempts:
+    post:
+      summary: Submit review results
+      description: Updates scheduling parameters (interval, ease factor) based on user performance quality.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "en_for_vi"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reviewItemId
+                - rating
+              properties:
+                reviewItemId:
+                  type: string
+                  example: "rev_item_001"
+                rating:
+                  type: string
+                  enum: [again, hard, good, easy]
+                  example: "good"
+                responseTimeMs:
+                  type: integer
+                  example: 3200
+      responses:
+        '200':
+          description: Review result updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nextReviewAt:
+                    type: string
+                    example: "2026-06-27T10:00:00Z"
+                  intervalDays:
+                    type: integer
+                    example: 4
+
+  /courses/{courseId}/progress/summary:
+    get:
+      summary: Get user progress summary
+      description: Returns learning progress details like completion rates and streak metrics.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "en_for_vi"
+      responses:
+        '200':
+          description: Progress statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalLessonsCompleted:
+                    type: integer
+                    example: 12
+                  streakDays:
+                    type: integer
+                    example: 5
+                  weeklyActiveDays:
+                    type: array
+                    items:
+                      type: boolean
+                    example: [true, true, false, true, true, false, false]
+
+  /sync/attempts:
+    post:
+      summary: Sync offline attempts
+      description: Uploads a list of cached offline question attempts to reconcile progress.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - attempts
+              properties:
+                attempts:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AttemptSubmitRequest'
+      responses:
+        '200':
+          description: Offline progress synchronized successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  syncedCount:
+                    type: integer
+                    example: 3
+                  success:
+                    type: boolean
+                    example: true
+
+components:
+  schemas:
+    AttemptSubmitRequest:
+      type: object
+      required:
+        - clientRequestId
+        - deviceId
+        - courseId
+        - sourceLanguage
+        - targetLanguage
+        - lessonId
+        - lessonVersionId
+        - questionId
+        - questionVersionId
+        - selectedAnswer
+        - responseTimeMs
+        - answeredAt
+      properties:
+        clientRequestId:
+          type: string
+          example: "crq_001"
+        deviceId:
+          type: string
+          example: "device_abc"
+        courseId:
+          type: string
+          example: "en_for_vi"
+        sourceLanguage:
+          type: string
+          example: "vi"
+        targetLanguage:
+          type: string
+          example: "en"
+        lessonId:
+          type: string
+          example: "lesson_101"
+        lessonVersionId:
+          type: string
+          example: "lesson_101_v1"
+        questionId:
+          type: string
+          example: "q_201"
+        questionVersionId:
+          type: string
+          example: "q_201_v1"
+        selectedAnswer:
+          type: string
+          example: "Xin chào"
+        responseTimeMs:
+          type: integer
+          example: 4200
+        usedHint:
+          type: boolean
+          example: false
+        attemptSource:
+          type: string
+          enum: [lesson, review]
+          example: "lesson"
+        answeredAt:
+          type: string
+          example: "2026-06-23T10:00:00Z"
+
+  responses:
+    ErrorResponse:
+      description: Standard Error Response
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - error
+              - meta
+            properties:
+              error:
+                type: object
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    type: string
+                    example: "BAD_REQUEST"
+                  message:
+                    type: string
+                    example: "Invalid input values"
+                  details:
+                    type: object
+                    example: {}
+              meta:
+                type: object
+                required:
+                  - requestId
+                  - apiVersion
+                properties:
+                  requestId:
+                    type: string
+                    example: "req_xyz987"
+                  apiVersion:
+                    type: string
+                    example: "v1"
