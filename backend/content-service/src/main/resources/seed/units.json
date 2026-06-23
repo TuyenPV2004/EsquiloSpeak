@@ -1,0 +1,14 @@
+[
+  {
+    "unitId": "unit_1",
+    "courseId": "en_for_vi",
+    "title": "Greetings and Introductions",
+    "sequenceOrder": 1
+  },
+  {
+    "unitId": "unit_2",
+    "courseId": "en_for_vi",
+    "title": "Numbers and Daily Basics",
+    "sequenceOrder": 2
+  }
+]

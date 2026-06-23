@@ -1,0 +1,133 @@
+[
+  {
+    "questionId": "q_111",
+    "lessonId": "lesson_1_1",
+    "prompt": "Dịch câu sau: 'Hello'",
+    "type": "multiple_choice",
+    "audioUrl": "/api/v1/media/hello.mp3",
+    "correctAnswer": "Xin chào",
+    "explanation": "'Hello' nghĩa là 'Xin chào' trong tiếng Anh.",
+    "versionId": "q_111_v1",
+    "options": [
+      { "optionText": "Xin chào" },
+      { "optionText": "Tạm biệt" },
+      { "optionText": "Cảm ơn" }
+    ]
+  },
+  {
+    "questionId": "q_112",
+    "lessonId": "lesson_1_1",
+    "prompt": "Chọn từ viết đúng cho: 'Tạm biệt'",
+    "type": "multiple_choice",
+    "audioUrl": "/api/v1/media/goodbye.mp3",
+    "correctAnswer": "Goodbye",
+    "explanation": "'Goodbye' nghĩa là 'Tạm biệt' trong tiếng Anh.",
+    "versionId": "q_112_v1",
+    "options": [
+      { "optionText": "Hello" },
+      { "optionText": "Goodbye" },
+      { "optionText": "Thanks" }
+    ]
+  },
+  {
+    "questionId": "q_113",
+    "lessonId": "lesson_1_1",
+    "prompt": "Nghe và lặp lại câu sau: \"Hello, how are you?\"",
+    "type": "speaking",
+    "audioUrl": "/api/v1/media/hello_how_are_you.mp3",
+    "correctAnswer": "Hello, how are you?",
+    "explanation": "Luyện nói câu chào hỏi phổ biến: \"Hello, how are you?\"",
+    "versionId": "q_113_v1",
+    "options": []
+  },
+  {
+    "questionId": "q_121",
+    "lessonId": "lesson_1_2",
+    "prompt": "Dịch nghĩa câu sau: 'What is your name?'",
+    "type": "multiple_choice",
+    "audioUrl": "/api/v1/media/what_is_your_name.mp3",
+    "correctAnswer": "Tên bạn là gì?",
+    "explanation": "'What is your name?' dịch là 'Tên bạn là gì?'.",
+    "versionId": "q_121_v1",
+    "options": [
+      { "optionText": "Bạn khỏe không?" },
+      { "optionText": "Tên bạn là gì?" },
+      { "optionText": "Bạn bao nhiêu tuổi?" }
+    ]
+  },
+  {
+    "questionId": "q_122",
+    "lessonId": "lesson_1_2",
+    "prompt": "Chọn câu trả lời đúng cho: 'My name is Nam'",
+    "type": "multiple_choice",
+    "audioUrl": null,
+    "correctAnswer": "Tên tôi là Nam",
+    "explanation": "'My name is Nam' dịch là 'Tên tôi là Nam'.",
+    "versionId": "q_122_v1",
+    "options": [
+      { "optionText": "Tên tôi là Nam" },
+      { "optionText": "Tôi sống ở Nam" },
+      { "optionText": "Tôi thích Nam" }
+    ]
+  },
+  {
+    "questionId": "q_211",
+    "lessonId": "lesson_2_1",
+    "prompt": "Số 5 trong tiếng Anh đọc là gì?",
+    "type": "multiple_choice",
+    "audioUrl": "/api/v1/media/five.mp3",
+    "correctAnswer": "Five",
+    "explanation": "Số 5 tiếng Anh là 'Five'.",
+    "versionId": "q_211_v1",
+    "options": [
+      { "optionText": "Four" },
+      { "optionText": "Five" },
+      { "optionText": "Six" }
+    ]
+  },
+  {
+    "questionId": "q_212",
+    "lessonId": "lesson_2_1",
+    "prompt": "Từ 'One' tương ứng với số mấy?",
+    "type": "multiple_choice",
+    "audioUrl": null,
+    "correctAnswer": "1",
+    "explanation": "'One' nghĩa là số 1.",
+    "versionId": "q_212_v1",
+    "options": [
+      { "optionText": "1" },
+      { "optionText": "2" },
+      { "optionText": "3" }
+    ]
+  },
+  {
+    "questionId": "q_221",
+    "lessonId": "lesson_2_2",
+    "prompt": "Câu hỏi giờ thông dụng trong tiếng Anh là gì?",
+    "type": "multiple_choice",
+    "audioUrl": "/api/v1/media/what_time_is_it.mp3",
+    "correctAnswer": "What time is it?",
+    "explanation": "'What time is it?' dùng để hỏi giờ giấc.",
+    "versionId": "q_221_v1",
+    "options": [
+      { "optionText": "What is the date?" },
+      { "optionText": "What time is it?" },
+      { "optionText": "How are you?" }
+    ]
+  },
+  {
+    "questionId": "q_222",
+    "lessonId": "lesson_2_2",
+    "prompt": "Dịch câu sau: 'It is ten o'clock'",
+    "type": "multiple_choice",
+    "audioUrl": null,
+    "correctAnswer": "Bây giờ là 10 giờ đúng",
+    "explanation": "'It is ten o'clock' dịch là 'Bây giờ là 10 giờ'.",
+    "versionId": "q_222_v1",
+    "options": [
+      { "optionText": "Bây giờ là 10 giờ đúng" },
+      { "optionText": "Bây giờ là 10 giờ 10 phút" },
+      { "optionText": "Bây giờ là 9 giờ đúng" }
+    ]
+  }
+]

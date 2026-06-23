@@ -1,0 +1,30 @@
+[
+  {
+    "lessonId": "lesson_1_1",
+    "unitId": "unit_1",
+    "title": "Chào hỏi cơ bản",
+    "sequenceOrder": 1,
+    "versionId": "lesson_1_1_v1"
+  },
+  {
+    "lessonId": "lesson_1_2",
+    "unitId": "unit_1",
+    "title": "Giới thiệu bản thân",
+    "sequenceOrder": 2,
+    "versionId": "lesson_1_2_v1"
+  },
+  {
+    "lessonId": "lesson_2_1",
+    "unitId": "unit_2",
+    "title": "Đếm số 1-10",
+    "sequenceOrder": 1,
+    "versionId": "lesson_2_1_v1"
+  },
+  {
+    "lessonId": "lesson_2_2",
+    "unitId": "unit_2",
+    "title": "Hỏi giờ giấc",
+    "sequenceOrder": 2,
+    "versionId": "lesson_2_2_v1"
+  }
+]

@@ -1,0 +1,2 @@
+analytics:
+  hash-secret: ${ANALYTICS_HASH_SECRET}
