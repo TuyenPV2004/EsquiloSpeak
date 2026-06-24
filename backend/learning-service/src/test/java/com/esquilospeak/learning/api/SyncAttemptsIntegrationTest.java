@@ -27,11 +27,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import com.esquilospeak.learning.BaseIntegrationTest;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
 @Transactional
-public class SyncAttemptsIntegrationTest {
+public class SyncAttemptsIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private WebApplicationContext context;

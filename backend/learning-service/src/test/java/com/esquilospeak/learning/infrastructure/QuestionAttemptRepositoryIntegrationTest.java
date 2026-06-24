@@ -10,11 +10,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.esquilospeak.learning.BaseIntegrationTest;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@SpringBootTest
 @Transactional
-public class QuestionAttemptRepositoryIntegrationTest {
+public class QuestionAttemptRepositoryIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private QuestionAttemptRepository questionAttemptRepository;
