@@ -1,0 +1,31 @@
+$kind: http-request
+url: "{{baseUrl}}/auth/guest"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "deviceId": "{{deviceId}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Token is present and stored", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.accessToken).to.not.be.undefined;
+          pm.environment.set("accessToken", jsonData.accessToken);
+      });
+
+      pm.test("Verify user and device id details", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.userId).to.be.a('string');
+          pm.expect(jsonData.deviceId).to.be.a('string');
+      });
+    language: text/javascript
+order: 1000

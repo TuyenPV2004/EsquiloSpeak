@@ -1,0 +1,3 @@
+$kind: collection
+description: Các endpoints lưu lịch sử làm bài tập, cập nhật tiến độ học tập và kiểm nghiệm cơ chế Idempotency từ Learning Service.
+order: 3000

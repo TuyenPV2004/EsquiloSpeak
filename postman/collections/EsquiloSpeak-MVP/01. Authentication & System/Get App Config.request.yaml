@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/app-config"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Contains latestAppVersion", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.latestAppVersion).to.not.be.undefined;
+      });
+    language: text/javascript
+order: 2000

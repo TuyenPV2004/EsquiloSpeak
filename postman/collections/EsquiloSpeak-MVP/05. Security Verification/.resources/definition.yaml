@@ -1,0 +1,3 @@
+$kind: collection
+description: Các ca kiểm thử lỗi (Negative Tests) liên quan đến bảo mật, xác thực token JWT.
+order: 5000

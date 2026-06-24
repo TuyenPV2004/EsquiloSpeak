@@ -1,0 +1,3 @@
+$kind: collection
+description: Các endpoints quản lý xác thực tài khoản và cấu hình hệ thống ban đầu.
+order: 1000

@@ -1,0 +1,40 @@
+$kind: http-request
+url: "{{baseUrl}}/sync/attempts"
+method: POST
+headers:
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "attempts": [
+        {
+          "clientRequestId": "{{clientRequestId}}_sync_stale",
+          "deviceId": "{{deviceId}}",
+          "courseId": "{{courseId}}",
+          "sourceLanguage": "vi",
+          "targetLanguage": "en",
+          "lessonId": "{{lessonId}}",
+          "lessonVersionId": "lesson_101_v1",
+          "questionId": "{{questionId}}",
+          "questionVersionId": "q_201_v1_stale_nonexistent",
+          "selectedAnswer": "Xin chào",
+          "responseTimeMs": 3000,
+          "answeredAt": "2026-06-23T10:00:00Z"
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () {
+          pm.response.to.have.status(200);
+      });
+      pm.test("Verify returns FALE with STALE_CONTENT", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.results[0].status).to.equal("FAILED");
+          pm.expect(jsonData.results[0].errorCode).to.equal("STALE_CONTENT");
+      });
+    language: text/javascript
+order: 2000

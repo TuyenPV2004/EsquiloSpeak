@@ -1,0 +1,3 @@
+$kind: collection
+description: Các endpoints thực hiện đồng bộ theo lô (Batch Sync) các bài làm học tập được làm ở chế độ offline.
+order: 4000
