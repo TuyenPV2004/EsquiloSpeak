@@ -40,3 +40,6 @@ bin/
 *.sql
 docs/
 *.md
+
+# Cho phép theo dõi các tệp SQL di cư của Flyway
+!database/migration/**/*.sql

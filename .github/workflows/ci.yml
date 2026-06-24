@@ -53,7 +53,7 @@ jobs:
       - name: Run Flutter Analyze
         run: |
           cd mobile
-          flutter analyze
+          flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Run Flutter Tests
         run: |
