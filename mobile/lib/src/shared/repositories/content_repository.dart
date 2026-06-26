@@ -3,6 +3,8 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
+import '../../core/network/network_error_helper.dart';
+import '../../core/device/device_id_service.dart';
 import '../data/local/app_database.dart';
 import '../data/local/database_provider.dart';
 import '../models/course.dart';
@@ -29,11 +31,30 @@ class OfflineModeException implements Exception {
   String toString() => message;
 }
 
+class StaleContentException implements Exception {
+  final String message;
+  StaleContentException([this.message = 'Nội dung bài học đã được cập nhật. Vui lòng tải lại bài học để tiếp tục.']);
+
+  @override
+  String toString() => message;
+}
+
+enum CompleteLessonResult { synced, pendingOffline }
+
+class LessonIncompleteException implements Exception {
+  final String message;
+  LessonIncompleteException([this.message = 'Bạn cần trả lời đúng tất cả các câu hỏi để hoàn thành bài học này.']);
+
+  @override
+  String toString() => message;
+}
+
 class ContentRepository {
   final Dio _dio;
   final AppDatabase _db;
+  final DeviceIdService _deviceIdService;
 
-  ContentRepository(this._dio, this._db);
+  ContentRepository(this._dio, this._db, this._deviceIdService);
 
   Future<List<CourseModel>> getCourses() async {
     try {
@@ -177,7 +198,7 @@ class ContentRepository {
       // Resolve audioUrl for each question
       final resolvedQuestions = data.questions.map((q) {
         if (q.audioUrl != null && q.audioUrl!.isNotEmpty) {
-          final resolvedUrl = _resolveApiUrl(_dio.options.baseUrl ?? '', q.audioUrl!);
+          final resolvedUrl = _resolveApiUrl(_dio.options.baseUrl, q.audioUrl!);
           return QuestionModel(
             questionId: q.questionId,
             lessonId: q.lessonId,
@@ -221,7 +242,7 @@ class ContentRepository {
           )).toList();
 
           final resolvedUrl = cq.audioUrl != null && cq.audioUrl!.isNotEmpty
-              ? _resolveApiUrl(_dio.options.baseUrl ?? '', cq.audioUrl!)
+              ? _resolveApiUrl(_dio.options.baseUrl, cq.audioUrl!)
               : cq.audioUrl;
 
           questions.add(QuestionModel(
@@ -270,9 +291,11 @@ class ContentRepository {
     final sourceLang = cachedCourse?.sourceLanguage ?? 'vi';
     final targetLang = cachedCourse?.targetLanguage ?? 'en';
 
+    final deviceId = await _deviceIdService.getOrCreateDeviceId();
+
     final payload = {
       'clientRequestId': clientRequestId,
-      'deviceId': 'device_mock_id',
+      'deviceId': deviceId,
       'courseId': courseId,
       'sourceLanguage': sourceLang,
       'targetLanguage': targetLang,
@@ -293,6 +316,17 @@ class ContentRepository {
       );
       return AttemptResponseModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (de) {
+      final statusCode = de.response?.statusCode;
+      final responseData = de.response?.data;
+      final errorCode = responseData is Map<String, dynamic>
+          ? (responseData['error'] is Map<String, dynamic> ? responseData['error']['code'] : null)
+          : null;
+
+      if (statusCode == 400 && errorCode == 'STALE_CONTENT') {
+        await _db.invalidateLessonCache(courseId: courseId, lessonId: lessonId);
+        throw StaleContentException();
+      }
+
       final isTransient = de.type == DioExceptionType.connectionTimeout ||
           de.type == DioExceptionType.sendTimeout ||
           de.type == DioExceptionType.receiveTimeout ||
@@ -312,7 +346,7 @@ class ContentRepository {
         await _db.into(_db.pendingAttempts).insertOnConflictUpdate(
           PendingAttemptsCompanion(
             clientRequestId: Value(clientRequestId),
-            deviceId: const Value('device_mock_id'),
+            deviceId: Value(deviceId),
             courseId: Value(courseId),
             sourceLanguage: Value(sourceLang),
             targetLanguage: Value(targetLang),
@@ -351,7 +385,7 @@ class ContentRepository {
         await _db.into(_db.pendingAttempts).insertOnConflictUpdate(
           PendingAttemptsCompanion(
             clientRequestId: Value(clientRequestId),
-            deviceId: const Value('device_mock_id'),
+            deviceId: Value(deviceId),
             courseId: Value(courseId),
             sourceLanguage: Value(sourceLang),
             targetLanguage: Value(targetLang),
@@ -402,8 +436,47 @@ class ContentRepository {
     );
   }
 
-  Future<void> completeLesson(String courseId, String lessonId) async {
-    await _dio.post('/api/v1/courses/$courseId/lessons/$lessonId/complete');
+  Future<CompleteLessonResult> completeLesson(String courseId, String lessonId) async {
+    try {
+      await _dio.post('/api/v1/courses/$courseId/lessons/$lessonId/complete');
+      await (_db.update(_db.cachedLessons)
+            ..where((t) => t.courseId.equals(courseId) & t.lessonId.equals(lessonId)))
+          .write(const CachedLessonsCompanion(status: Value('completed'), syncStatus: Value('SYNCED')));
+      return CompleteLessonResult.synced;
+    } on DioException catch (de) {
+      final statusCode = de.response?.statusCode;
+      final responseData = de.response?.data;
+      final errorCode = responseData is Map<String, dynamic>
+          ? responseData['code']
+          : null;
+
+      if (statusCode == 409 && errorCode == 'LESSON_ALREADY_COMPLETED') {
+        await (_db.update(_db.cachedLessons)
+              ..where((t) => t.courseId.equals(courseId) & t.lessonId.equals(lessonId)))
+            .write(const CachedLessonsCompanion(status: Value('completed'), syncStatus: Value('SYNCED')));
+        return CompleteLessonResult.synced;
+      }
+
+      if (statusCode == 422) {
+        throw LessonIncompleteException();
+      }
+
+      if (isTransientNetworkException(de)) {
+        await (_db.update(_db.cachedLessons)
+              ..where((t) => t.courseId.equals(courseId) & t.lessonId.equals(lessonId)))
+            .write(const CachedLessonsCompanion(status: Value('completed'), syncStatus: Value('PENDING')));
+        return CompleteLessonResult.pendingOffline;
+      }
+      rethrow;
+    } catch (e) {
+      if (isTransientNetworkException(e)) {
+        await (_db.update(_db.cachedLessons)
+              ..where((t) => t.courseId.equals(courseId) & t.lessonId.equals(lessonId)))
+            .write(const CachedLessonsCompanion(status: Value('completed'), syncStatus: Value('PENDING')));
+        return CompleteLessonResult.pendingOffline;
+      }
+      rethrow;
+    }
   }
 
   Future<ProgressSummaryModel> getProgressSummary(String courseId) async {
@@ -415,5 +488,6 @@ class ContentRepository {
 final contentRepositoryProvider = Provider<ContentRepository>((ref) {
   final dio = ref.watch(apiClientProvider);
   final db = ref.watch(databaseProvider);
-  return ContentRepository(dio, db);
+  final deviceIdService = ref.watch(deviceIdServiceProvider);
+  return ContentRepository(dio, db, deviceIdService);
 });

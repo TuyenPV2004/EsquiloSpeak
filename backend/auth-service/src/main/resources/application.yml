@@ -6,8 +6,8 @@ spring:
     name: auth-service
   datasource:
     url: jdbc:postgresql://localhost:5433/EsquiloSpeak_db
-    username: esquilospeak
-    password: 123456
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -21,6 +21,10 @@ spring:
     enabled: true
     schemas: auth_schema,user_schema
     default-schema: auth_schema
+    baseline-on-migrate: true
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
 
 management:
   endpoints:

@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.time.Clock;
 import com.esquilospeak.learning.service.Sm2Scheduler;
+import com.esquilospeak.learning.service.ReviewItemService;
 
 import org.springframework.http.HttpStatus;
 import java.time.LocalDateTime;
@@ -35,7 +36,7 @@ public class AttemptController {
     private QuestionAttemptRepository questionAttemptRepository;
 
     @Autowired
-    private ReviewItemRepository reviewItemRepository;
+    private ReviewItemService reviewItemService;
 
     @Autowired
     private ContentClient contentClient;
@@ -49,24 +50,42 @@ public class AttemptController {
             @RequestAttribute("userId") String userId,
             @RequestBody AttemptRequest request) {
 
-        // 2. Idempotency Check
-        Optional<QuestionAttempt> existing = questionAttemptRepository.findByClientRequestId(request.getClientRequestId());
+        // 2. Idempotency Check (Không gọi contentClient, trả về kết quả tối giản)
+        Optional<QuestionAttempt> existing = questionAttemptRepository.findByUserIdAndClientRequestId(userId, request.getClientRequestId());
         if (existing.isPresent()) {
             QuestionAttempt attempt = existing.get();
-            QuestionDto question = contentClient.getQuestion(attempt.getQuestionId());
             AttemptResponse response = new AttemptResponse(
                     attempt.isCorrect(),
-                    question != null ? question.getCorrectAnswer() : "",
-                    question != null ? question.getExplanation() : "",
+                    "",
+                    "",
                     false
             );
             return ResponseEntity.ok(response);
         }
 
+        // Kiểm tra questionVersionId từ client
+        if (request.getQuestionVersionId() == null || request.getQuestionVersionId().isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiErrorResponse.of("MISSING_QUESTION_VERSION", "questionVersionId is required to submit an attempt."));
+        }
+
         // 3. Fetch Question Details from Content Service
         QuestionDto question = contentClient.getQuestion(request.getQuestionId());
         if (question == null) {
-            return ResponseEntity.badRequest().body("Question not found in content-service");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiErrorResponse.of("QUESTION_NOT_FOUND", "Question not found in content-service."));
+        }
+
+        // Kiểm tra xem server có versionId hay không
+        if (question.getVersionId() == null || question.getVersionId().isBlank()) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiErrorResponse.of("QUESTION_VERSION_MISSING", "Question version is missing in content-service."));
+        }
+
+        // So khớp tuyệt đối phiên bản câu hỏi bằng Objects.equals
+        if (!java.util.Objects.equals(request.getQuestionVersionId(), question.getVersionId())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiErrorResponse.of("STALE_CONTENT", "The question version on the client is stale. Please refresh content."));
         }
 
         // 4. Validate speaking self-review attempt
@@ -112,58 +131,27 @@ public class AttemptController {
         try {
             questionAttemptRepository.save(attempt);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // Unique constraint violation (duplicate clientRequestId), return success response
+            // Unique constraint violation (duplicate clientRequestId), return success response tối giản
             return ResponseEntity.ok(new AttemptResponse(
                     isCorrect,
-                    question.getCorrectAnswer(),
-                    question.getExplanation(),
+                    "",
+                    "",
                     false
             ));
         }
 
         // 6. SM-2 Spaced Repetition Scheduling
-        // Use prompt or questionId as the concept. To keep it clean and identifiable, let's use the prompt
-        String concept = question.getPrompt();
-        String questionType = "vocabulary";
-        
-        Optional<ReviewItem> existingReviewOpt = reviewItemRepository.findByUserIdAndCourseIdAndConcept(userId, courseId, concept);
         boolean reviewCreatedOrUpdated = false;
-
-        // We create or update review item if wrong, slow, used hint, or to schedule future review
-        if (!isSpeaking && (!isCorrect || request.isUsedHint() || request.getResponseTimeMs() > 8000 || existingReviewOpt.isPresent())) {
-            ReviewItem reviewItem;
-            
-            // Map performance to quality q (0-5)
-            int q;
-            if (!isCorrect) {
-                q = 1; // again
-            } else if (request.isUsedHint() || request.getResponseTimeMs() > 8000) {
-                q = 3; // hard
-            } else if (request.getResponseTimeMs() < 3000) {
-                q = 5; // easy
-            } else {
-                q = 4; // good
-            }
-
-            if (existingReviewOpt.isPresent()) {
-                reviewItem = existingReviewOpt.get();
-                Sm2Scheduler.calculateNextReview(reviewItem, q, clock);
-            } else {
-                String reviewItemId = "rev_" + UUID.randomUUID().toString().replace("-", "");
-                reviewItem = new ReviewItem(
-                        reviewItemId,
-                        userId,
-                        courseId,
-                        concept,
-                        questionType,
-                        LocalDateTime.now(clock)
-                );
-                Sm2Scheduler.initializeReviewItem(reviewItem, q, clock);
-            }
-
-            reviewItem.setCorrectAnswer(question.getCorrectAnswer());
-            reviewItem.setExplanation(question.getExplanation());
-            reviewItemRepository.save(reviewItem);
+        if (!isSpeaking) {
+            reviewItemService.upsertReviewItemFromAttempt(
+                    userId,
+                    courseId,
+                    question,
+                    isCorrect,
+                    request.isUsedHint(),
+                    request.getResponseTimeMs(),
+                    LocalDateTime.now(clock)
+            );
             reviewCreatedOrUpdated = true;
         }
 
@@ -180,6 +168,8 @@ public class AttemptController {
 
         return ResponseEntity.ok(response);
     }
+
+
 
 
 
@@ -255,7 +245,7 @@ public class AttemptController {
         public boolean getIsCorrect() { return isCorrect; }
         public String getCorrectAnswer() { return correctAnswer; }
         public String getExplanation() { return explanation; }
-        public boolean getReviewCreated() { return reviewCreated; }
+        public boolean isReviewCreated() { return reviewCreated; }
     }
 
     public static class QuestionDto {
@@ -265,6 +255,7 @@ public class AttemptController {
         private String prompt;
         private String type;
         private String versionId;
+        private String audioUrl;
 
         public String getQuestionId() { return questionId; }
         public void setQuestionId(String questionId) { this.questionId = questionId; }
@@ -283,5 +274,8 @@ public class AttemptController {
 
         public String getVersionId() { return versionId; }
         public void setVersionId(String versionId) { this.versionId = versionId; }
+
+        public String getAudioUrl() { return audioUrl; }
+        public void setAudioUrl(String audioUrl) { this.audioUrl = audioUrl; }
     }
 }

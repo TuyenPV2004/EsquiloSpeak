@@ -30,16 +30,12 @@ public class ReviewController {
     private Clock clock;
 
     @GetMapping("/courses/{courseId}/reviews/due")
-    public ResponseEntity<List<ReviewItem>> getDueReviews(
+    public ResponseEntity<?> getDueReviews(
             @PathVariable("courseId") String courseId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestAttribute(value = "userId", required = false) String userId) {
 
-        String userId = "test_user_id"; // default fallback for testing
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            if (JwtTokenUtil.validateToken(token)) {
-                userId = JwtTokenUtil.getUserIdFromToken(token);
-            }
+        if (userId == null || userId.trim().isEmpty()) {
+            return ResponseEntity.status(401).body("Unauthorized: Missing user authentication context");
         }
 
         List<ReviewItem> dueReviews = reviewItemRepository.findByUserIdAndCourseIdAndNextReviewAtBefore(
@@ -50,15 +46,11 @@ public class ReviewController {
     @PostMapping("/courses/{courseId}/review-attempts")
     public ResponseEntity<?> submitReviewAttempt(
             @PathVariable("courseId") String courseId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestAttribute(value = "userId", required = false) String userId,
             @RequestBody ReviewAttemptRequest request) {
 
-        String userId = "test_user_id"; // default fallback for testing
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            if (JwtTokenUtil.validateToken(token)) {
-                userId = JwtTokenUtil.getUserIdFromToken(token);
-            }
+        if (userId == null || userId.trim().isEmpty()) {
+            return ResponseEntity.status(401).body("Unauthorized: Missing user authentication context");
         }
 
         Optional<ReviewItem> reviewItemOpt = reviewItemRepository.findById(request.getReviewItemId());
@@ -113,14 +105,10 @@ public class ReviewController {
     @GetMapping("/internal/courses/{courseId}/reviews/due/count")
     public ResponseEntity<Integer> getDueReviewsCount(
             @PathVariable("courseId") String courseId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestParam("userId") String userId) {
 
-        String userId = "test_user_id"; // default fallback for testing
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            if (JwtTokenUtil.validateToken(token)) {
-                userId = JwtTokenUtil.getUserIdFromToken(token);
-            }
+        if (userId == null || userId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
         }
 
         List<ReviewItem> dueReviews = reviewItemRepository.findByUserIdAndCourseIdAndNextReviewAtBefore(

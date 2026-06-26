@@ -146,25 +146,6 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
                                           color: theme.colorScheme.onSurface,
                                         ),
                                       ),
-                                      const SizedBox(height: 6),
-                                      if (question.correctAnswer != null)
-                                        Text(
-                                          'Đáp án đúng: ${question.correctAnswer}',
-                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                            color: theme.colorScheme.primary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      if (question.explanation != null && question.explanation!.isNotEmpty) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          'Giải thích: ${question.explanation}',
-                                          style: TextStyle(
-                                            color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
                                     ],
                                   ),
                                 ),

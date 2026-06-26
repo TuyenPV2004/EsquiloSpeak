@@ -14,7 +14,7 @@ Thumbs.db
 # Environment variables
 .env
 .env.*
-! .env.example
+!.env.example
 
 # Local agents configuration
 .agents/
@@ -43,3 +43,18 @@ docs/
 
 # Cho phép theo dõi các tệp SQL di cư của Flyway
 !database/migration/**/*.sql
+
+# Cho phép theo dõi các tệp SQL khởi tạo DB trong infra
+!infra/postgres/init/*.sql
+
+# Postman auto-generated files and extensions
+.postman/
+postman/collections/
+postman/environments/
+postman/globals/
+
+# Flutter temporary log/analysis files
+mobile/analysis_output.txt
+
+# GitHub local modernization experiments
+.github/modernize/

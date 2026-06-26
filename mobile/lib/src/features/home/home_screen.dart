@@ -6,30 +6,33 @@ import '../progress/progress_providers.dart';
 import '../../shared/widgets/loading_view.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/repositories/sync_repository.dart';
-
-final pendingAttemptsCountProvider = StreamProvider<int>((ref) {
-  final syncRepo = ref.watch(syncRepositoryProvider);
-  return syncRepo.watchPendingCount();
-});
+import '../../shared/models/course_home.dart';
+import 'widgets/failed_permanent_sync_banner.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final courseId = ref.watch(selectedCourseIdProvider);
+
     // Trigger sync on load
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(syncRepositoryProvider).syncPendingAttempts().catchError((e) {
+      ref.read(syncRepositoryProvider).syncPendingAttempts().then((_) {
+        ref.invalidate(courseHomeProvider);
+        ref.invalidate(progressSummaryProvider(courseId));
+      }).catchError((e) {
         debugPrint('Auto sync failed: $e');
       });
     });
 
     final theme = Theme.of(context);
     final homeAsync = ref.watch(courseHomeProvider);
-    final courseId = ref.watch(selectedCourseIdProvider);
     final progressAsync = ref.watch(progressSummaryProvider(courseId));
     final pendingCountAsync = ref.watch(pendingAttemptsCountProvider);
     final pendingCount = pendingCountAsync.valueOrNull ?? 0;
+    final failedPermanentCountAsync = ref.watch(failedPermanentCountProvider);
+    final failedPermanentCount = failedPermanentCountAsync.valueOrNull ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -53,10 +56,25 @@ class HomeScreen extends ConsumerWidget {
         ),
         data: (homeData) {
           if (homeData.lessons.isEmpty) {
-            return const Center(child: Text('Chưa có bài học nào được cấu hình cho khóa học này.'));
+            return const Center(child: Text('Chưa có bài học trong chương này.'));
           }
 
-          final nextLesson = homeData.lessons.first;
+          // Loop thủ công tìm bài học available đầu tiên
+          LessonInfoModel? nextLesson;
+          for (final l in homeData.lessons) {
+            if (l.status == 'available') {
+              nextLesson = l;
+              break;
+            }
+          }
+
+          final isCourseCompleted = homeData.lessons.every((l) => l.status == 'completed');
+
+          // Fallback nếu không tìm thấy bài nào available
+          if (nextLesson == null && homeData.lessons.isNotEmpty) {
+            nextLesson = homeData.lessons.first;
+          }
+
           final progressData = progressAsync.value;
           final streakText = progressData != null ? '${progressData.streak} ngày' : '-- ngày';
           final learnedWordsText = progressData != null ? '${progressData.learnedWordsCount} từ' : '-- từ';
@@ -78,6 +96,10 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (failedPermanentCount > 0) ...[
+                      FailedPermanentSyncBanner(count: failedPermanentCount),
+                      const SizedBox(height: 16),
+                    ],
                     if (pendingCount > 0) ...[
                       GestureDetector(
                         onTap: () async {
@@ -146,10 +168,15 @@ class HomeScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
                           gradient: LinearGradient(
-                            colors: [
-                              theme.colorScheme.primary,
-                              theme.colorScheme.primary.withOpacity(0.8),
-                            ],
+                            colors: isCourseCompleted
+                                ? [
+                                    Colors.green.shade600,
+                                    Colors.green.shade800,
+                                  ]
+                                : [
+                                    theme.colorScheme.primary,
+                                    theme.colorScheme.primary.withOpacity(0.8),
+                                  ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -165,9 +192,9 @@ class HomeScreen extends ConsumerWidget {
                                   color: Colors.white24,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Text(
-                                  'BÀI HỌC TIẾP THEO',
-                                  style: TextStyle(
+                                child: Text(
+                                  isCourseCompleted ? 'BẠN ĐÃ HOÀN THÀNH KHÓA HỌC' : 'BÀI HỌC TIẾP THEO',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -176,7 +203,7 @@ class HomeScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                homeData.activeUnitTitle ?? 'Chương học hiện tại',
+                                isCourseCompleted ? 'Chúc mừng bạn đã hoàn thành!' : (homeData.activeUnitTitle ?? 'Chương học hiện tại'),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
@@ -185,31 +212,33 @@ class HomeScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                nextLesson.title,
+                                isCourseCompleted ? 'Hãy tiếp tục ôn tập từ vựng mỗi ngày để ghi nhớ sâu.' : (nextLesson?.title ?? ''),
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 14,
                                 ),
                               ),
-                              const SizedBox(height: 20),
-                              ElevatedButton(
-                                onPressed: () => context.push('/lesson/${nextLesson.lessonId}'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: theme.colorScheme.primary,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                              if (nextLesson != null) ...[
+                                const SizedBox(height: 20),
+                                ElevatedButton(
+                                  onPressed: () => context.push('/lesson/${nextLesson!.lessonId}'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: isCourseCompleted ? Colors.green.shade800 : theme.colorScheme.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(isCourseCompleted ? 'Học lại từ đầu' : 'Học ngay (5-10 phút)'),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.play_arrow_rounded),
+                                    ],
                                   ),
                                 ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('Học ngay (5-10 phút)'),
-                                    SizedBox(width: 8),
-                                    Icon(Icons.play_arrow_rounded),
-                                  ],
-                                ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
@@ -297,27 +326,52 @@ class HomeScreen extends ConsumerWidget {
                       separatorBuilder: (context, index) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final lesson = homeData.lessons[index];
+                        final isLocked = lesson.status == 'locked';
+                        final isCompleted = lesson.status == 'completed';
+
                         return ListTile(
                           leading: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer,
+                              color: isLocked
+                                  ? Colors.grey.shade200
+                                  : theme.colorScheme.primaryContainer,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
-                              Icons.menu_book_rounded,
-                              color: theme.colorScheme.primary,
+                              isLocked ? Icons.lock_outline_rounded : Icons.menu_book_rounded,
+                              color: isLocked ? Colors.grey : theme.colorScheme.primary,
                             ),
                           ),
                           title: Text(
                             lesson.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
+                              color: isLocked ? Colors.grey : null,
                             ),
                           ),
-                          subtitle: Text('Trạng thái: ${lesson.status == 'available' ? 'Có sẵn' : lesson.status}'),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () => context.push('/lesson/${lesson.lessonId}'),
+                          subtitle: Text(
+                            'Trạng thái: ${isCompleted ? 'Đã hoàn thành' : (lesson.status == 'available' ? 'Sẵn sàng' : 'Chưa mở khóa')}',
+                            style: TextStyle(
+                              color: isLocked ? Colors.grey.shade400 : null,
+                            ),
+                          ),
+                          trailing: Icon(
+                            isLocked ? Icons.lock_rounded : Icons.chevron_right_rounded,
+                            color: isLocked ? Colors.grey.shade400 : null,
+                          ),
+                          onTap: () {
+                            if (isLocked) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Vui lòng hoàn thành các bài học trước để mở khóa bài học này.'),
+                                  backgroundColor: Colors.amber,
+                                ),
+                              );
+                            } else {
+                              context.push('/lesson/${lesson.lessonId}');
+                            }
+                          },
                         );
                       },
                     ),

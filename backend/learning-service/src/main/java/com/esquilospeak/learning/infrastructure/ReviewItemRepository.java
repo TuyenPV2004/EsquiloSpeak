@@ -11,6 +11,6 @@ import java.util.Optional;
 @Repository
 public interface ReviewItemRepository extends JpaRepository<ReviewItem, String> {
     List<ReviewItem> findByUserIdAndCourseIdAndNextReviewAtBefore(String userId, String courseId, LocalDateTime now);
-    Optional<ReviewItem> findByUserIdAndCourseIdAndConcept(String userId, String courseId, String concept);
+    Optional<ReviewItem> findByUserIdAndCourseIdAndLearningItemIdAndType(String userId, String courseId, String learningItemId, String type);
     long countByUserIdAndCourseId(String userId, String courseId);
 }

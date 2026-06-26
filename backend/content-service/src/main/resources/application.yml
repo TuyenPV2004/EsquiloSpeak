@@ -4,10 +4,13 @@ server:
 spring:
   application:
     name: content-service
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
   datasource:
     url: jdbc:postgresql://localhost:5433/EsquiloSpeak_db
-    username: esquilospeak
-    password: 123456
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -21,6 +24,15 @@ spring:
     enabled: true
     schemas: content_schema
     default-schema: content_schema
+    baseline-on-migrate: true
+
+internal:
+  service:
+    token: ${INTERNAL_SERVICE_TOKEN}
+
+services:
+  learning:
+    base-url: ${LEARNING_SERVICE_URL:http://learning-service}
 
 management:
   endpoints:

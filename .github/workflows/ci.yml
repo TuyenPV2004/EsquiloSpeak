@@ -22,6 +22,10 @@ jobs:
           cache: maven
 
       - name: Run Backend Tests
+        env:
+          JWT_SECRET: ZXNxdWlsb3NwZWFrX3N1cGVyX3NlY3JldF9rZXlfZm9yX212cF90ZXN0aW5nXzEyMzQ1Njc4OTA=
+          ANALYTICS_HASH_SECRET: dev-only-fallback-secret-key-1234567890
+          INTERNAL_SERVICE_TOKEN: esquilospeak_internal_s2s_token_for_testing_32_bytes_long
         run: |
           cd backend
           mvn test

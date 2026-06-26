@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Mặc định chặn tất cả lưu lượng Cleartext HTTP trên bản Release/Profile -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

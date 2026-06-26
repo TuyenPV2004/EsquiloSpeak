@@ -50,6 +50,7 @@ dependencies:
 
   # Key-Value preferences
   shared_preferences: ^2.2.3
+  flutter_secure_storage: ^9.2.2
 
   # Audio playback
   just_audio: ^0.9.38

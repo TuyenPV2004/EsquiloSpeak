@@ -1,4 +1,5 @@
 
+import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/src/shared/data/local/app_database.dart';
@@ -103,6 +104,99 @@ void main() {
       final cachedOpts = await database.select(database.cachedQuestionOptions).get();
       expect(cachedOpts.length, 1);
       expect(cachedOpts.first.questionId, 'q_2');
+    });
+
+    test('invalidateLessonCache safely clears questions and options without modifying status', () async {
+      // 1. Insert two cached lessons
+      await database.into(database.cachedLessons).insert(
+        CachedLessonsCompanion.insert(
+          lessonId: 'lesson_a',
+          courseId: 'course_1',
+          title: 'Lesson A',
+          status: 'completed',
+          syncStatus: const Value('SYNCED'),
+        ),
+      );
+      await database.into(database.cachedLessons).insert(
+        CachedLessonsCompanion.insert(
+          lessonId: 'lesson_b',
+          courseId: 'course_1',
+          title: 'Lesson B',
+          status: 'available',
+          syncStatus: const Value('SYNCED'),
+        ),
+      );
+
+      // 2. Cache details for both lessons
+      await database.cacheLessonDetails(
+        lessonId: 'lesson_a',
+        questions: [
+          CachedQuestionsCompanion.insert(
+            questionId: 'q_a',
+            lessonId: 'lesson_a',
+            prompt: 'Prompt A',
+            type: 'multiple_choice',
+            correctAnswer: 'A',
+            explanation: 'Exp A',
+            questionVersionId: 'v1',
+          )
+        ],
+        options: [
+          CachedQuestionOptionsCompanion.insert(
+            questionId: 'q_a',
+            optionId: 1,
+            optionText: 'Option A',
+          )
+        ],
+      );
+
+      await database.cacheLessonDetails(
+        lessonId: 'lesson_b',
+        questions: [
+          CachedQuestionsCompanion.insert(
+            questionId: 'q_b',
+            lessonId: 'lesson_b',
+            prompt: 'Prompt B',
+            type: 'multiple_choice',
+            correctAnswer: 'B',
+            explanation: 'Exp B',
+            questionVersionId: 'v1',
+          )
+        ],
+        options: [
+          CachedQuestionOptionsCompanion.insert(
+            questionId: 'q_b',
+            optionId: 2,
+            optionText: 'Option B',
+          )
+        ],
+      );
+
+      // 3. Invalidate lesson cache with non-existent or mismatched courseId + lessonId
+      await database.invalidateLessonCache(courseId: 'course_wrong', lessonId: 'lesson_a');
+
+      // Verify nothing is deleted
+      var questions = await database.select(database.cachedQuestions).get();
+      expect(questions.length, 2);
+
+      // 4. Invalidate correct lesson cache (course_1, lesson_a)
+      await database.invalidateLessonCache(courseId: 'course_1', lessonId: 'lesson_a');
+
+      // Verify questions and options of lesson_a are deleted, but lesson_b is kept
+      questions = await database.select(database.cachedQuestions).get();
+      expect(questions.length, 1);
+      expect(questions.first.lessonId, 'lesson_b');
+
+      final options = await database.select(database.cachedQuestionOptions).get();
+      expect(options.length, 1);
+      expect(options.first.questionId, 'q_b');
+
+      // 5. Verify lesson status in cachedLessons is NOT modified
+      final lessonA = await (database.select(database.cachedLessons)
+            ..where((tbl) => tbl.lessonId.equals('lesson_a')))
+          .getSingle();
+      expect(lessonA.status, 'completed');
+      expect(lessonA.syncStatus, 'SYNCED');
     });
   });
 }

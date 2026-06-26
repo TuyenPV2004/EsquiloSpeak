@@ -1,82 +1,108 @@
 package com.esquilospeak.learning.config;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.io.Decoders;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import jakarta.annotation.PostConstruct;
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import java.util.Date;
 
 public class JwtTokenUtil {
 
-    private static final String SECRET_KEY = "esquilospeak_super_secret_key_for_mvp_testing";
-    private static final String HEADER_JSON = "{\"alg\":\"HS256\",\"typ\":\"JWT\"}";
+    private static SecretKey signingKey;
+    // Token validity: 7 days
+    private static final long JWT_TOKEN_VALIDITY = 7 * 24 * 60 * 60 * 1000;
+
+    public static void setSecretKey(String secret) {
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException("JWT Secret key must be at least 256 bits (32 bytes) long for HMAC-SHA256");
+        }
+        signingKey = Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private static SecretKey getSigningKey() {
+        if (signingKey == null) {
+            throw new IllegalStateException("JWT signing key has not been initialized");
+        }
+        return signingKey;
+    }
 
     public static String generateToken(String userId, String deviceId) {
-        try {
-            String header = Base64.getUrlEncoder().withoutPadding().encodeToString(HEADER_JSON.getBytes(StandardCharsets.UTF_8));
-            String payloadJson = String.format("{\"userId\":\"%s\",\"deviceId\":\"%s\"}", userId, deviceId);
-            String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8));
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + JWT_TOKEN_VALIDITY);
 
-            String signature = sign(header + "." + payload, SECRET_KEY);
-            return header + "." + payload + "." + signature;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to generate JWT", e);
-        }
+        return Jwts.builder()
+                .subject(userId)
+                .claim("deviceId", deviceId)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
     }
 
     public static String getUserIdFromToken(String token) {
-        String payload = getPayloadFromToken(token);
-        if (payload == null) return null;
-        return extractJsonField(payload, "userId");
-    }
-
-    public static String getDeviceIdFromToken(String token) {
-        String payload = getPayloadFromToken(token);
-        if (payload == null) return null;
-        return extractJsonField(payload, "deviceId");
-    }
-
-    public static boolean validateToken(String token) {
         try {
-            String[] parts = token.split("\\.");
-            if (parts.length != 3) {
-                return false;
-            }
-            String calculatedSignature = sign(parts[0] + "." + parts[1], SECRET_KEY);
-            return calculatedSignature.equals(parts[2]);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private static String getPayloadFromToken(String token) {
-        try {
-            String[] parts = token.split("\\.");
-            if (parts.length < 2) return null;
-            byte[] decodedBytes = Base64.getUrlDecoder().decode(parts[1]);
-            return new String(decodedBytes, StandardCharsets.UTF_8);
-        } catch (Exception e) {
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(cleanToken(token))
+                    .getPayload();
+            return claims.getSubject();
+        } catch (JwtException | IllegalArgumentException e) {
             return null;
         }
     }
 
-    private static String sign(String data, String secret) throws NoSuchAlgorithmException, InvalidKeyException {
-        Mac sha256HMAC = Mac.getInstance("HmacSHA256");
-        SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        sha256HMAC.init(secretKey);
-        byte[] hash = sha256HMAC.doFinal(data.getBytes(StandardCharsets.UTF_8));
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+    public static String getDeviceIdFromToken(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(cleanToken(token))
+                    .getPayload();
+            return claims.get("deviceId", String.class);
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
     }
 
-    private static String extractJsonField(String json, String field) {
-        Pattern pattern = Pattern.compile("\"" + field + "\":\"([^\"]+)\"");
-        Matcher matcher = pattern.matcher(json);
-        if (matcher.find()) {
-            return matcher.group(1);
+    public static boolean validateToken(String token) {
+        try {
+            Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(cleanToken(token));
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
         }
-        return null;
+    }
+
+    private static String cleanToken(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            return token.substring(7);
+        }
+        return token;
+    }
+
+    @Component
+    public static class JwtTokenInitializer {
+        @Value("${spring.security.jwt.secret}")
+        private String secret;
+
+        @PostConstruct
+        public void init() {
+            if (secret == null || secret.trim().isEmpty()) {
+                throw new IllegalStateException("spring.security.jwt.secret property must be set");
+            }
+            JwtTokenUtil.setSecretKey(secret);
+        }
     }
 }

@@ -4,7 +4,16 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "review_items", schema = "review_schema")
+@Table(
+    name = "review_items",
+    schema = "review_schema",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_review_items_user_course_item_type",
+            columnNames = {"user_id", "course_id", "learning_item_id", "type"}
+        )
+    }
+)
 public class ReviewItem {
 
     @Id
@@ -44,7 +53,24 @@ public class ReviewItem {
     @Column(name = "explanation")
     private String explanation;
 
+    @Column(name = "mastery_score", nullable = false)
+    private double masteryScore;
+
+    @Column(name = "lapse_count", nullable = false)
+    private int lapseCount;
+
+    @Column(name = "last_result", length = 20)
+    private String lastResult;
+
+    @Column(name = "learning_item_id", length = 50, nullable = false)
+    private String learningItemId;
+
+    @Column(name = "question_version_id", length = 50)
+    private String questionVersionId;
+
     public ReviewItem() {
+        this.masteryScore = 0.0;
+        this.lapseCount = 0;
     }
 
     public ReviewItem(String reviewItemId, String userId, String courseId, String concept, String type, LocalDateTime nextReviewAt) {
@@ -57,6 +83,8 @@ public class ReviewItem {
         this.intervalDays = 0;
         this.repetitionCount = 0;
         this.nextReviewAt = nextReviewAt;
+        this.masteryScore = 0.0;
+        this.lapseCount = 0;
     }
 
     public String getReviewItemId() { return reviewItemId; }
@@ -94,4 +122,19 @@ public class ReviewItem {
 
     public String getExplanation() { return explanation; }
     public void setExplanation(String explanation) { this.explanation = explanation; }
+
+    public double getMasteryScore() { return masteryScore; }
+    public void setMasteryScore(double masteryScore) { this.masteryScore = masteryScore; }
+
+    public int getLapseCount() { return lapseCount; }
+    public void setLapseCount(int lapseCount) { this.lapseCount = lapseCount; }
+
+    public String getLastResult() { return lastResult; }
+    public void setLastResult(String lastResult) { this.lastResult = lastResult; }
+
+    public String getLearningItemId() { return learningItemId; }
+    public void setLearningItemId(String learningItemId) { this.learningItemId = learningItemId; }
+
+    public String getQuestionVersionId() { return questionVersionId; }
+    public void setQuestionVersionId(String questionVersionId) { this.questionVersionId = questionVersionId; }
 }

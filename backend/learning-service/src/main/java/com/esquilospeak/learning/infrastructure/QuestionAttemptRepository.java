@@ -11,7 +11,7 @@ import java.util.Optional;
 
 @Repository
 public interface QuestionAttemptRepository extends JpaRepository<QuestionAttempt, String> {
-    Optional<QuestionAttempt> findByClientRequestId(String clientRequestId);
+    Optional<QuestionAttempt> findByUserIdAndClientRequestId(String userId, String clientRequestId);
     List<QuestionAttempt> findByUserId(String userId);
     
     long countByUserIdAndCourseId(String userId, String courseId);
@@ -22,4 +22,13 @@ public interface QuestionAttemptRepository extends JpaRepository<QuestionAttempt
 
     @Query("SELECT COUNT(a) FROM QuestionAttempt a WHERE a.userId = :userId AND a.courseId = :courseId AND a.isCorrect = :isCorrect AND (a.selectedAnswer IS NULL OR a.selectedAnswer <> 'SPOKEN_SELF_REVIEWED')")
     long countNonSpeakingCorrectAttempts(@Param("userId") String userId, @Param("courseId") String courseId, @Param("isCorrect") boolean isCorrect);
+
+    @Query("SELECT COUNT(DISTINCT a.questionId) FROM QuestionAttempt a " +
+           "WHERE a.userId = :userId AND a.courseId = :courseId AND a.lessonId = :lessonId " +
+           "AND a.isCorrect = true AND a.questionId IN :questionIds")
+    long countCorrectQuestions(
+            @Param("userId") String userId,
+            @Param("courseId") String courseId,
+            @Param("lessonId") String lessonId,
+            @Param("questionIds") List<String> questionIds);
 }

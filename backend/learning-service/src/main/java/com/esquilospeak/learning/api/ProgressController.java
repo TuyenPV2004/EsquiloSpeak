@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.esquilospeak.learning.util.HmacUtil;
 import com.esquilospeak.learning.client.ContentClient;
+import com.esquilospeak.learning.service.ProgressService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -45,32 +46,40 @@ public class ProgressController {
     @Autowired
     private ContentClient contentClient;
 
+    @Autowired
+    private ProgressService progressService;
+
     @PostMapping("/courses/{courseId}/lessons/{lessonId}/complete")
     public ResponseEntity<?> completeLesson(
             @PathVariable("courseId") String courseId,
             @PathVariable("lessonId") String lessonId,
             @RequestAttribute("userId") String userId) {
 
-        List<LessonProgress> existing = lessonProgressRepository.findByUserId(userId);
-        boolean alreadyCompleted = existing.stream().anyMatch(lp -> lp.getLessonId().equalsIgnoreCase(lessonId) && "COMPLETED".equalsIgnoreCase(lp.getStatus()));
+        try {
+            progressService.completeLesson(userId, courseId, lessonId);
 
-        if (!alreadyCompleted) {
-            String progressId = "prog_" + UUID.randomUUID().toString().replace("-", "");
-            LessonProgress progress = new LessonProgress(
-                    progressId,
-                    userId,
-                    lessonId,
-                    "COMPLETED",
-                    LocalDateTime.now()
-            );
-            lessonProgressRepository.save(progress);
+            String userHash = HmacUtil.hashUserId(userId, hashSecret);
+            log.info("{\"type\":\"analytics\",\"eventName\":\"lesson_completed\",\"userHash\":\"{}\",\"courseId\":\"{}\",\"lessonId\":\"{}\"}",
+                    userHash, courseId, lessonId);
+
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            String errorCode;
+            if (e.getStatusCode() == org.springframework.http.HttpStatus.NOT_FOUND) {
+                errorCode = "LESSON_NOT_FOUND";
+            } else if (e.getStatusCode() == org.springframework.http.HttpStatus.CONFLICT) {
+                errorCode = "EMPTY_LESSON";
+            } else if (e.getStatusCode() == org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY) {
+                errorCode = "LESSON_INCOMPLETE";
+            } else {
+                errorCode = "GENERIC_ERROR";
+            }
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(Map.of("error", Map.of(
+                            "code", errorCode,
+                            "message", e.getReason() != null ? e.getReason() : e.getMessage()
+                    )));
         }
-
-        String userHash = HmacUtil.hashUserId(userId, hashSecret);
-        log.info("{\"type\":\"analytics\",\"eventName\":\"lesson_completed\",\"userHash\":\"{}\",\"courseId\":\"{}\",\"lessonId\":\"{}\"}",
-                userHash, courseId, lessonId);
-
-        return ResponseEntity.ok(Map.of("success", true));
     }
 
     @GetMapping("/courses/{courseId}/progress/summary")
@@ -131,6 +140,17 @@ public class ProgressController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/internal/users/{userId}/completed-lessons")
+    public ResponseEntity<List<String>> getCompletedLessons(
+            @PathVariable("userId") String userId) {
+        List<LessonProgress> progressList = lessonProgressRepository.findByUserId(userId);
+        List<String> completedLessonIds = progressList.stream()
+                .filter(lp -> "COMPLETED".equalsIgnoreCase(lp.getStatus()))
+                .map(LessonProgress::getLessonId)
+                .toList();
+        return ResponseEntity.ok(completedLessonIds);
     }
 
     private int calculateUserStreak(String userId) {

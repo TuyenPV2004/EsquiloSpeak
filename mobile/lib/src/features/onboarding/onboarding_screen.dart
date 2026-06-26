@@ -1,10 +1,12 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/network/api_client.dart';
 import '../../core/monitoring/monitoring_provider.dart';
+import '../../core/config/preference_keys.dart';
+import '../../core/device/device_id_service.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -23,11 +25,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      var token = prefs.getString('accessToken');
+      const secureStorage = FlutterSecureStorage();
+      var token = await secureStorage.read(key: 'accessToken');
 
       if (token == null || token.isEmpty) {
-        final random = Random();
-        final deviceId = 'dev_${DateTime.now().millisecondsSinceEpoch}_${random.nextInt(10000)}';
+        final deviceId = await ref.read(deviceIdServiceProvider).getOrCreateDeviceId();
         
         final dio = ref.read(apiClientProvider);
         final response = await dio.post('/api/v1/auth/guest', data: {
@@ -38,9 +40,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         final userId = response.data['userId'] as String?;
 
         if (token != null) {
-          await prefs.setString('accessToken', token);
+          await secureStorage.write(key: 'accessToken', value: token);
           await prefs.setString('userId', userId ?? '');
-          await prefs.setString('deviceId', deviceId);
           ref.read(monitoringServiceProvider).logEvent('onboarding_completed');
         }
       }

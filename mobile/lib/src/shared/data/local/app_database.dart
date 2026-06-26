@@ -23,6 +23,7 @@ class CachedLessons extends Table {
   TextColumn get courseId => text().withLength(min: 1, max: 50)();
   TextColumn get title => text()();
   TextColumn get status => text()();
+  TextColumn get syncStatus => text().withDefault(const Constant('SYNCED'))();
   DateTimeColumn get cachedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
@@ -86,13 +87,15 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
-          // future migrations will go here
+          if (from < 2) {
+            await m.addColumn(cachedLessons, cachedLessons.syncStatus);
+          }
         },
       );
 
@@ -125,6 +128,38 @@ class AppDatabase extends _$AppDatabase {
       for (final opt in options) {
         await into(cachedQuestionOptions).insertOnConflictUpdate(opt);
       }
+    });
+  }
+
+  // Safely invalidate cached questions/options by verifying the courseId and lessonId pair
+  Future<void> invalidateLessonCache({
+    required String courseId,
+    required String lessonId,
+  }) async {
+    await transaction(() async {
+      // 1. Xác thực cặp khóa an toàn từ bảng cachedLessons trước
+      final lessonExists = await (select(cachedLessons)
+            ..where((tbl) => tbl.courseId.equals(courseId) & tbl.lessonId.equals(lessonId)))
+          .getSingleOrNull();
+      
+      if (lessonExists == null) {
+        return; // Không tồn tại bài học phù hợp với courseId + lessonId -> không xóa cache
+      }
+
+      // 2. Tiến hành xóa questions và question options (lessonId/questionId globally unique)
+      final existingQuestions = await (select(cachedQuestions)
+            ..where((tbl) => tbl.lessonId.equals(lessonId)))
+          .get();
+      
+      for (final q in existingQuestions) {
+        await (delete(cachedQuestionOptions)
+              ..where((tbl) => tbl.questionId.equals(q.questionId)))
+            .go();
+      }
+      
+      await (delete(cachedQuestions)
+            ..where((tbl) => tbl.lessonId.equals(lessonId)))
+          .go();
     });
   }
 }

@@ -6,8 +6,8 @@ spring:
     name: learning-service
   datasource:
     url: jdbc:postgresql://localhost:5433/EsquiloSpeak_db
-    username: esquilospeak
-    password: 123456
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -21,6 +21,13 @@ spring:
     enabled: true
     schemas: learning_schema,review_schema
     default-schema: learning_schema
+    baseline-on-migrate: true
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+internal:
+  service:
+    token: ${INTERNAL_SERVICE_TOKEN}
 
 management:
   endpoints:
@@ -37,4 +44,4 @@ eureka:
       defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
 
 analytics:
-  hash-secret: ${ANALYTICS_HASH_SECRET:dev-only-fallback-secret-key-1234567890}
+  hash-secret: ${ANALYTICS_HASH_SECRET}

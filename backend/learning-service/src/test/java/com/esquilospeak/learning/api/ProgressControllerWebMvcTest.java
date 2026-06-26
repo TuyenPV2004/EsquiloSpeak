@@ -2,12 +2,16 @@ package com.esquilospeak.learning.api;
 
 import com.esquilospeak.learning.config.JwtAuthenticationFilter;
 import com.esquilospeak.learning.config.JwtTokenUtil;
+import com.esquilospeak.learning.config.InternalServiceAuthInterceptor;
 import com.esquilospeak.learning.domain.LessonProgress;
 import com.esquilospeak.learning.infrastructure.LessonProgressRepository;
 import com.esquilospeak.learning.infrastructure.QuestionAttemptRepository;
 import com.esquilospeak.learning.infrastructure.ReviewAttemptRepository;
 import com.esquilospeak.learning.infrastructure.ReviewItemRepository;
 import com.esquilospeak.learning.client.ContentClient;
+import com.esquilospeak.learning.service.ProgressService;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,10 +55,20 @@ public class ProgressControllerWebMvcTest {
     @MockBean
     private ContentClient contentClient;
 
+    @MockBean
+    private ProgressService progressService;
+
+    @MockBean
+    private InternalServiceAuthInterceptor internalServiceAuthInterceptor;
+
     private String validToken;
 
     @BeforeEach
-    public void setUp() {
+    public void setUp() throws Exception {
+        JwtTokenUtil.setSecretKey("ZXNxdWlsb3NwZWFrX3N1cGVyX3NlY3JldF9rZXlfZm9yX212cF90ZXN0aW5nXzEyMzQ1Njc4OTA=");
+        
+        when(internalServiceAuthInterceptor.preHandle(any(), any(), any())).thenReturn(true);
+
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(new JwtAuthenticationFilter())
                 .build();
@@ -69,13 +83,46 @@ public class ProgressControllerWebMvcTest {
 
     @Test
     public void testCompleteLesson_HappyPath() throws Exception {
-        when(lessonProgressRepository.findByUserId("user_123")).thenReturn(Collections.emptyList());
+        when(progressService.completeLesson(anyString(), anyString(), anyString())).thenReturn(null);
 
         mockMvc.perform(post("/api/v1/courses/en_for_vi/lessons/lesson_1/complete")
                 .header("Authorization", validToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        verify(lessonProgressRepository, times(1)).save(any(LessonProgress.class));
+        verify(progressService, times(1)).completeLesson("user_123", "en_for_vi", "lesson_1");
+    }
+
+    @Test
+    public void testCompleteLesson_NotFound_Returns404() throws Exception {
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson or course not found"))
+                .when(progressService).completeLesson(anyString(), anyString(), anyString());
+
+        mockMvc.perform(post("/api/v1/courses/en_for_vi/lessons/lesson_1/complete")
+                .header("Authorization", validToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("LESSON_NOT_FOUND"));
+    }
+
+    @Test
+    public void testCompleteLesson_EmptyLesson_Returns409() throws Exception {
+        doThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Lesson contains no questions"))
+                .when(progressService).completeLesson(anyString(), anyString(), anyString());
+
+        mockMvc.perform(post("/api/v1/courses/en_for_vi/lessons/lesson_1/complete")
+                .header("Authorization", validToken))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("EMPTY_LESSON"));
+    }
+
+    @Test
+    public void testCompleteLesson_Incomplete_Returns422() throws Exception {
+        doThrow(new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Not all questions answered correctly"))
+                .when(progressService).completeLesson(anyString(), anyString(), anyString());
+
+        mockMvc.perform(post("/api/v1/courses/en_for_vi/lessons/lesson_1/complete")
+                .header("Authorization", validToken))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("LESSON_INCOMPLETE"));
     }
 }

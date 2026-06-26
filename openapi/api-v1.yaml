@@ -6,9 +6,12 @@ info:
 servers:
   - url: http://localhost:8080/api/v1
     description: Local API Gateway
+security:
+  - BearerAuth: []
 paths:
   /app-config:
     get:
+      security: []
       summary: Get application configuration
       description: Returns configuration details, feature flags, and supported locales/languages.
       responses:
@@ -41,6 +44,7 @@ paths:
 
   /auth/guest:
     post:
+      security: []
       summary: Register/Authenticate anonymous guest user
       description: Creates a new user record tied to a device identifier or returns the existing session token.
       requestBody:
@@ -86,15 +90,11 @@ paths:
             schema:
               type: object
               required:
-                - userId
                 - targetLanguage
                 - sourceLanguage
                 - dailyGoalMinutes
                 - selfAssessedLevel
               properties:
-                userId:
-                  type: string
-                  example: "usr_998877"
                 targetLanguage:
                   type: string
                   example: "en"
@@ -124,9 +124,12 @@ paths:
                     example: "usr_998877"
         '400':
           $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
   /courses:
     get:
+      security: []
       summary: List available courses
       description: Returns all language courses available for enrollment.
       responses:
@@ -204,6 +207,8 @@ paths:
                   dueReviewCount:
                     type: integer
                     example: 5
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
   /courses/{courseId}/lessons/{lessonId}:
     get:
@@ -247,7 +252,7 @@ paths:
                         questionId:
                           type: string
                           example: "q_201"
-                        questionVersionId:
+                        versionId:
                           type: string
                           example: "q_201_v1"
                         type:
@@ -260,12 +265,66 @@ paths:
                         audioUrl:
                           type: string
                           example: "http://localhost:8080/api/v1/media/hello.mp3"
+                        correctAnswer:
+                          type: string
+                          example: "Xin chào"
+                        explanation:
+                          type: string
+                          example: "'Hello' dịch sang tiếng Việt nghĩa là 'Xin chào'."
                         options:
                           type: array
                           items:
-                            type: string
-                          example: ["Xin chào", "Tạm biệt", "Cảm ơn"]
+                            type: object
+                            properties:
+                              optionId:
+                                type: integer
+                                example: 1
+                              optionText:
+                                type: string
+                                example: "Xin chào"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
         '404':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /courses/{courseId}/lessons/{lessonId}/complete:
+    post:
+      summary: Mark lesson as completed
+      description: Validates and completes a lesson for a user. Only allowed when all unique questions in the lesson have been answered correctly on the server.
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "en_for_vi"
+        - name: lessonId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "lesson_101"
+      responses:
+        '200':
+          description: Lesson marked as completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Lesson or course not found
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          description: Lesson has no valid questions (empty content)
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          description: Learner has not answered all unique questions correctly on the server
           $ref: '#/components/responses/ErrorResponse'
 
   /courses/{courseId}/attempts:
@@ -302,11 +361,13 @@ paths:
                   explanation:
                     type: string
                     example: "'Hello' dịch sang tiếng Việt nghĩa là 'Xin chào'."
-                  masteryScoreUpdated:
-                    type: integer
-                    example: 45
+                  reviewCreated:
+                    type: boolean
+                    example: false
         '400':
           $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
   /courses/{courseId}/reviews/due:
     get:
@@ -342,6 +403,8 @@ paths:
                     hint:
                       type: string
                       example: "Lời chào hỏi ban đầu khi gặp mặt"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
   /courses/{courseId}/review-attempts:
     post:
@@ -381,13 +444,21 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - success
+                  - nextReviewAt
                 properties:
+                  success:
+                    type: boolean
+                    example: true
                   nextReviewAt:
                     type: string
+                    format: date-time
                     example: "2026-06-27T10:00:00Z"
-                  intervalDays:
-                    type: integer
-                    example: 4
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
 
   /courses/{courseId}/progress/summary:
     get:
@@ -407,18 +478,45 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - completedLessonsCount
+                  - totalLessonsCount
+                  - courseCompletionPercent
+                  - streak
+                  - accuracy
+                  - learnedWordsCount
+                  - dueReviewCount
                 properties:
-                  totalLessonsCompleted:
+                  completedLessonsCount:
                     type: integer
+                    format: int32
                     example: 12
-                  streakDays:
+                  totalLessonsCount:
                     type: integer
+                    format: int32
+                    example: 20
+                  courseCompletionPercent:
+                    type: number
+                    format: double
+                    example: 60.0
+                  streak:
+                    type: integer
+                    format: int32
                     example: 5
-                  weeklyActiveDays:
-                    type: array
-                    items:
-                      type: boolean
-                    example: [true, true, false, true, true, false, false]
+                  accuracy:
+                    type: number
+                    format: double
+                    example: 85.5
+                  learnedWordsCount:
+                    type: integer
+                    format: int64
+                    example: 45
+                  dueReviewCount:
+                    type: integer
+                    format: int32
+                    example: 8
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
   /sync/attempts:
     post:
@@ -444,13 +542,24 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - success
+                  - syncedCount
+                  - results
                 properties:
-                  syncedCount:
-                    type: integer
-                    example: 3
                   success:
                     type: boolean
                     example: true
+                  syncedCount:
+                    type: integer
+                    format: int32
+                    example: 3
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SyncResult'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
 components:
   schemas:
@@ -514,6 +623,28 @@ components:
           type: string
           example: "2026-06-23T10:00:00Z"
 
+    SyncResult:
+      type: object
+      required:
+        - clientRequestId
+        - status
+      properties:
+        clientRequestId:
+          type: string
+          example: "crq_001"
+        status:
+          type: string
+          enum: [SYNCED, DUPLICATE, FAILED]
+          example: "SYNCED"
+        errorCode:
+          type: string
+          nullable: true
+          example: "QUESTION_NOT_FOUND"
+        message:
+          type: string
+          nullable: true
+          example: "Question not found in content-service"
+
   responses:
     ErrorResponse:
       description: Standard Error Response
@@ -552,3 +683,80 @@ components:
                   apiVersion:
                     type: string
                     example: "v1"
+
+    UnauthorizedError:
+      description: Access token is missing or invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - error
+              - meta
+            properties:
+              error:
+                type: object
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    type: string
+                    example: "UNAUTHORIZED"
+                  message:
+                    type: string
+                    example: "Token is expired or invalid"
+              meta:
+                type: object
+                required:
+                  - requestId
+                  - apiVersion
+                properties:
+                  requestId:
+                    type: string
+                    example: "req_xyz987"
+                  apiVersion:
+                    type: string
+                    example: "v1"
+
+    ForbiddenError:
+      description: Authenticated user does not have permission to access this resource
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - error
+              - meta
+            properties:
+              error:
+                type: object
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    type: string
+                    example: "FORBIDDEN"
+                  message:
+                    type: string
+                    example: "Access denied"
+              meta:
+                type: object
+                required:
+                  - requestId
+                  - apiVersion
+                properties:
+                  requestId:
+                    type: string
+                    example: "req_xyz987"
+                  apiVersion:
+                    type: string
+                    example: "v1"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Nhập JWT access token để gọi các API được bảo vệ.

@@ -2,9 +2,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/src/core/ui/root_scaffold_messenger.dart';
 import '../lesson/lesson_providers.dart';
 import '../home/home_providers.dart';
 import '../progress/progress_providers.dart';
+import '../../shared/models/question.dart';
 import '../../shared/repositories/content_repository.dart';
 import '../../shared/widgets/loading_view.dart';
 import '../../shared/widgets/error_view.dart';
@@ -26,6 +28,8 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
   bool _isChecked = false;
   bool _isSubmitting = false;
   bool _isCorrect = false;
+  final Map<String, bool> _questionCorrectness = {};
+  final Set<String> _answeredQuestionIds = {};
   String _correctAnswer = '';
   String _explanation = '';
   late DateTime _startTime;
@@ -63,6 +67,8 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
         _correctAnswer = response.correctAnswer;
         _explanation = response.explanation;
         _isChecked = true;
+        _answeredQuestionIds.add(questionId);
+        _questionCorrectness[questionId] = (questionType == 'speaking') ? true : response.isCorrect;
       });
 
       // Log question_answered event
@@ -96,6 +102,8 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
         _correctAnswer = e.correctAnswer;
         _explanation = e.explanation;
         _isChecked = true;
+        _answeredQuestionIds.add(questionId);
+        _questionCorrectness[questionId] = (questionType == 'speaking') ? true : e.isCorrectLocal;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -143,9 +151,32 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi gửi kết quả: $e')),
+        String errMsg = 'Lỗi gửi kết quả: $e';
+        if (e is StaleContentException) {
+          errMsg = 'Nội dung bài học đã được cập nhật. Vui lòng tải lại bài học để tiếp tục.';
+        }
+        rootScaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: Text(errMsg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
         );
+
+        if (e is StaleContentException) {
+          // Reset local state variables
+          setState(() {
+            _selectedOptionIndex = null;
+            _questionCorrectness.clear();
+            _answeredQuestionIds.clear();
+          });
+
+          // Invalidate providers
+          ref.invalidate(lessonDetailProvider(widget.lessonId));
+          ref.invalidate(courseHomeProvider);
+          ref.invalidate(progressSummaryProvider(courseId));
+          context.go('/home');
+        }
       }
     } finally {
       if (mounted) {
@@ -156,7 +187,29 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
     }
   }
 
-  Future<void> _completeAndExit(String courseId) async {
+  Future<void> _completeAndExit(String courseId, List<QuestionModel> questions) async {
+    final gradableQuestions = questions.where((q) => q.type != 'speaking').toList();
+
+    final hasUnanswered = questions.any(
+      (q) => !_answeredQuestionIds.contains(q.questionId),
+    );
+
+    final hasIncorrect = gradableQuestions.any(
+      (q) => _questionCorrectness[q.questionId] != true,
+    );
+
+    if (hasUnanswered || hasIncorrect) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bài học chưa hoàn thành: Bạn cần trả lời đúng tất cả các câu hỏi để hoàn thành bài học này.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
@@ -165,7 +218,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
 
     try {
       final repository = ref.read(contentRepositoryProvider);
-      await repository.completeLesson(courseId, widget.lessonId);
+      final result = await repository.completeLesson(courseId, widget.lessonId);
 
       await monitoring.logEvent(
         'lesson_completed',
@@ -175,6 +228,23 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
           'sync_state': 'online_synced',
         },
       );
+
+      if (result == CompleteLessonResult.pendingOffline) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Không có kết nối mạng. Bài làm đã được ghi nhận ngoại tuyến và sẽ đồng bộ khi có mạng lại.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+
+      if (mounted) {
+        ref.invalidate(courseHomeProvider);
+        ref.invalidate(progressSummaryProvider(courseId));
+        context.go('/home');
+      }
     } catch (e) {
       debugPrint('Error completing lesson: $e');
       await monitoring.logEvent(
@@ -182,14 +252,27 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
         parameters: {
           'course_id': courseId,
           'lesson_id': widget.lessonId,
-          'sync_state': 'offline_pending',
+          'sync_state': 'offline_failed',
         },
       );
+
+      if (mounted) {
+        String errMsg = 'Không thể hoàn thành bài học. Vui lòng thử lại sau.';
+        if (e is LessonIncompleteException) {
+          errMsg = 'Bài học chưa hoàn thành: Bạn cần trả lời đúng tất cả các câu hỏi để hoàn thành bài học này.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errMsg),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
-        ref.invalidate(courseHomeProvider);
-        ref.invalidate(progressSummaryProvider(courseId));
-        context.go('/home');
+        setState(() {
+          _isSubmitting = false;
+        });
       }
     }
   }
@@ -367,7 +450,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                             ? null
                             : () {
                                 if (_currentIndex + 1 >= totalQuestions) {
-                                  _completeAndExit(courseId);
+                                  _completeAndExit(courseId, lessonData.questions);
                                 } else {
                                   _nextQuestion(totalQuestions);
                                 }
@@ -547,7 +630,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                               );
                             } else {
                               if (_currentIndex + 1 >= totalQuestions) {
-                                _completeAndExit(courseId);
+                                _completeAndExit(courseId, lessonData.questions);
                               } else {
                                 _nextQuestion(totalQuestions);
                               }

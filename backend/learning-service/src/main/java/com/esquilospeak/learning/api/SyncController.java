@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import com.esquilospeak.learning.util.HmacUtil;
 import java.time.Clock;
 import com.esquilospeak.learning.service.Sm2Scheduler;
+import com.esquilospeak.learning.service.ReviewItemService;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -31,7 +32,7 @@ public class SyncController {
     private QuestionAttemptRepository questionAttemptRepository;
 
     @Autowired
-    private ReviewItemRepository reviewItemRepository;
+    private ReviewItemService reviewItemService;
 
     @Autowired
     private ContentClient contentClient;
@@ -52,22 +53,33 @@ public class SyncController {
                 String clientRequestId = attemptReq.getClientRequestId();
                 try {
                     // 1. Idempotency Check (Duplicate check)
-                    Optional<QuestionAttempt> existing = questionAttemptRepository.findByClientRequestId(clientRequestId);
+                    Optional<QuestionAttempt> existing = questionAttemptRepository.findByUserIdAndClientRequestId(userId, clientRequestId);
                     if (existing.isPresent()) {
                         results.add(new SyncResult(clientRequestId, "DUPLICATE", null, null));
+                        continue;
+                    }
+
+                    // Kiểm tra questionVersionId của client
+                    if (attemptReq.getQuestionVersionId() == null || attemptReq.getQuestionVersionId().isBlank()) {
+                        results.add(new SyncResult(clientRequestId, "FAILED", "MISSING_QUESTION_VERSION", "questionVersionId is required to submit an attempt."));
                         continue;
                     }
 
                     // 2. Fetch Question details
                     AttemptController.QuestionDto question = contentClient.getQuestion(attemptReq.getQuestionId());
                     if (question == null) {
-                        results.add(new SyncResult(clientRequestId, "FAILED", "QUESTION_NOT_FOUND", "Question not found in content-service"));
+                        results.add(new SyncResult(clientRequestId, "FAILED", "QUESTION_NOT_FOUND", "Question not found in content-service."));
                         continue;
                     }
 
-                    // 3. Audit question version
-                    if (attemptReq.getQuestionVersionId() != null && question.getVersionId() != null 
-                            && !attemptReq.getQuestionVersionId().equalsIgnoreCase(question.getVersionId())) {
+                    // Kiểm tra versionId của server
+                    if (question.getVersionId() == null || question.getVersionId().isBlank()) {
+                        results.add(new SyncResult(clientRequestId, "RETRYABLE_FAILED", "QUESTION_VERSION_MISSING", "Question version is missing in content-service."));
+                        continue;
+                    }
+
+                    // 3. Audit question version bằng Objects.equals
+                    if (!java.util.Objects.equals(attemptReq.getQuestionVersionId(), question.getVersionId())) {
                         results.add(new SyncResult(clientRequestId, "FAILED", "STALE_CONTENT", "The question version on the client is stale. Please refresh content."));
                         continue;
                     }
@@ -118,7 +130,15 @@ public class SyncController {
 
                     // 6. SM-2 Scheduling
                     if (!isSpeaking) {
-                        scheduleReviewItem(userId, attemptReq.getCourseId(), question, isCorrect, attemptReq.isUsedHint(), attemptReq.getResponseTimeMs());
+                        reviewItemService.upsertReviewItemFromAttempt(
+                                userId,
+                                attemptReq.getCourseId(),
+                                question,
+                                isCorrect,
+                                attemptReq.isUsedHint(),
+                                attemptReq.getResponseTimeMs(),
+                                answeredAt
+                        );
                     }
 
                     results.add(new SyncResult(clientRequestId, "SYNCED", null, null));
@@ -142,46 +162,7 @@ public class SyncController {
 
 
 
-    private void scheduleReviewItem(String userId, String courseId, AttemptController.QuestionDto question, 
-                                    boolean isCorrect, boolean usedHint, int responseTimeMs) {
-        String concept = question.getPrompt();
-        String questionType = "vocabulary";
 
-        Optional<ReviewItem> existingReviewOpt = reviewItemRepository.findByUserIdAndCourseIdAndConcept(userId, courseId, concept);
-
-        // Map performance to quality q (0-5)
-        int q;
-        if (!isCorrect) {
-            q = 1; // again
-        } else if (usedHint || responseTimeMs > 8000) {
-            q = 3; // hard
-        } else if (responseTimeMs < 3000) {
-            q = 5; // easy
-        } else {
-            q = 4; // good
-        }
-
-        ReviewItem reviewItem;
-        if (existingReviewOpt.isPresent()) {
-            reviewItem = existingReviewOpt.get();
-            Sm2Scheduler.calculateNextReview(reviewItem, q, clock);
-        } else {
-            String reviewItemId = "rev_" + UUID.randomUUID().toString().replace("-", "");
-            reviewItem = new ReviewItem(
-                    reviewItemId,
-                    userId,
-                    courseId,
-                    concept,
-                    questionType,
-                    LocalDateTime.now(clock)
-            );
-            Sm2Scheduler.initializeReviewItem(reviewItem, q, clock);
-        }
-
-        reviewItem.setCorrectAnswer(question.getCorrectAnswer());
-        reviewItem.setExplanation(question.getExplanation());
-        reviewItemRepository.save(reviewItem);
-    }
 
     // Request/Response DTO classes
     public static class SyncRequest {

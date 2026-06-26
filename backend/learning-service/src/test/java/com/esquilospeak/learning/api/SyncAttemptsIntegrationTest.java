@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -143,11 +142,11 @@ public class SyncAttemptsIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.results[2].status").value("FAILED"))
                 .andExpect(jsonPath("$.results[2].errorCode").value("STALE_CONTENT"));
 
-        Optional<QuestionAttempt> savedNew = questionAttemptRepository.findByClientRequestId(clientReqNew);
+        Optional<QuestionAttempt> savedNew = questionAttemptRepository.findByUserIdAndClientRequestId(userId, clientReqNew);
         assertTrue(savedNew.isPresent());
         assertEquals("q_new_v1", savedNew.get().getQuestionVersionId());
 
-        Optional<QuestionAttempt> savedStale = questionAttemptRepository.findByClientRequestId(clientReqStale);
+        Optional<QuestionAttempt> savedStale = questionAttemptRepository.findByUserIdAndClientRequestId(userId, clientReqStale);
         assertFalse(savedStale.isPresent());
     }
 }

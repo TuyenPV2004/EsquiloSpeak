@@ -30,6 +30,9 @@ public class Sm2SchedulerTest {
         assertEquals(0, item.getIntervalDays());
         assertEquals(0, item.getRepetitionCount());
         assertEquals(2.5, item.getEaseFactor());
+        assertEquals(1, item.getLapseCount());
+        assertEquals("again", item.getLastResult());
+        assertEquals(10.0, item.getMasteryScore());
     }
 
     @Test
@@ -41,6 +44,9 @@ public class Sm2SchedulerTest {
         assertEquals(1, item.getIntervalDays());
         assertEquals(1, item.getRepetitionCount());
         assertEquals(2.5, item.getEaseFactor());
+        assertEquals(0, item.getLapseCount());
+        assertEquals("good", item.getLastResult());
+        assertEquals(45.0, item.getMasteryScore());
     }
 
     @Test
@@ -57,6 +63,9 @@ public class Sm2SchedulerTest {
         assertEquals(fixedNow.plusMinutes(10), item.getNextReviewAt());
         // EF calculation: 2.5 + (0.1 - (5 - 1) * (0.08 + (5 - 1) * 0.02)) = 1.96
         assertEquals(1.96, item.getEaseFactor(), 0.01);
+        assertEquals(1, item.getLapseCount());
+        assertEquals("again", item.getLastResult());
+        assertEquals(4.6, item.getMasteryScore(), 0.01);
     }
 
     @Test
@@ -72,6 +81,9 @@ public class Sm2SchedulerTest {
         assertEquals(3, item.getIntervalDays());
         assertEquals(fixedNow.plusDays(3), item.getNextReviewAt());
         assertEquals(2.36, item.getEaseFactor(), 0.01);
+        assertEquals(0, item.getLapseCount());
+        assertEquals("hard", item.getLastResult());
+        assertEquals(63.6, item.getMasteryScore(), 0.01);
     }
 
     @Test
@@ -87,6 +99,9 @@ public class Sm2SchedulerTest {
         assertEquals(8, item.getIntervalDays());
         assertEquals(fixedNow.plusDays(8), item.getNextReviewAt());
         assertEquals(2.5, item.getEaseFactor(), 0.01);
+        assertEquals(0, item.getLapseCount());
+        assertEquals("good", item.getLastResult());
+        assertEquals(85.0, item.getMasteryScore(), 0.01);
     }
 
     @Test
@@ -100,5 +115,8 @@ public class Sm2SchedulerTest {
 
         assertTrue(item.getEaseFactor() >= 1.3);
         assertEquals(1.3, item.getEaseFactor(), 0.01);
+        assertEquals(1, item.getLapseCount());
+        assertEquals("again", item.getLastResult());
+        assertEquals(0.0, item.getMasteryScore());
     }
 }

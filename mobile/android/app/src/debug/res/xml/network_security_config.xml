@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Cho phép lưu lượng HTTP Cleartext ở chế độ debug để kết nối máy chủ phát triển local -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

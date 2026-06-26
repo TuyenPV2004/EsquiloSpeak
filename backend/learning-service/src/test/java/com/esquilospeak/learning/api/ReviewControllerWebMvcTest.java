@@ -2,6 +2,7 @@ package com.esquilospeak.learning.api;
 
 import com.esquilospeak.learning.config.JwtAuthenticationFilter;
 import com.esquilospeak.learning.config.JwtTokenUtil;
+import com.esquilospeak.learning.config.InternalServiceAuthInterceptor;
 import com.esquilospeak.learning.domain.ReviewAttempt;
 import com.esquilospeak.learning.domain.ReviewItem;
 import com.esquilospeak.learning.infrastructure.ReviewAttemptRepository;
@@ -45,6 +46,9 @@ public class ReviewControllerWebMvcTest {
     @MockBean
     private ReviewAttemptRepository reviewAttemptRepository;
 
+    @MockBean
+    private InternalServiceAuthInterceptor internalServiceAuthInterceptor;
+
     @org.springframework.boot.test.context.TestConfiguration
     static class TestClockConfig {
         @org.springframework.context.annotation.Bean
@@ -63,7 +67,20 @@ public class ReviewControllerWebMvcTest {
     private String validToken;
 
     @BeforeEach
-    public void setUp() {
+    public void setUp() throws Exception {
+        JwtTokenUtil.setSecretKey("ZXNxdWlsb3NwZWFrX3N1cGVyX3NlY3JldF9rZXlfZm9yX212cF90ZXN0aW5nXzEyMzQ1Njc4OTA=");
+        
+        when(internalServiceAuthInterceptor.preHandle(any(), any(), any())).thenAnswer(invocation -> {
+            jakarta.servlet.http.HttpServletRequest req = invocation.getArgument(0);
+            jakarta.servlet.http.HttpServletResponse res = invocation.getArgument(1);
+            String token = req.getHeader("X-Internal-Service-Token");
+            if ("esquilospeak_internal_s2s_token_for_testing_32_bytes_long".equals(token)) {
+                return true;
+            }
+            res.setStatus(403);
+            return false;
+        });
+
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(new JwtAuthenticationFilter())
                 .build();
@@ -126,5 +143,40 @@ public class ReviewControllerWebMvcTest {
                 .andExpect(status().isForbidden());
 
         verify(reviewItemRepository, never()).save(any(ReviewItem.class));
+    }
+
+    @Test
+    public void testGetDueReviewsCount_S2S_Success() throws Exception {
+        ReviewItem item = new ReviewItem("rev_1", "user_123", "en_for_vi", "Hello", "vocabulary", LocalDateTime.now(clock));
+        when(reviewItemRepository.findByUserIdAndCourseIdAndNextReviewAtBefore(eq("user_123"), eq("en_for_vi"), any()))
+                .thenReturn(Collections.singletonList(item));
+
+        mockMvc.perform(get("/api/v1/internal/courses/en_for_vi/reviews/due/count")
+                .header("X-Internal-Service-Token", "esquilospeak_internal_s2s_token_for_testing_32_bytes_long")
+                .param("userId", "user_123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(1));
+    }
+
+    @Test
+    public void testGetDueReviewsCount_S2S_MissingToken_ReturnsForbidden() throws Exception {
+        mockMvc.perform(get("/api/v1/internal/courses/en_for_vi/reviews/due/count")
+                .param("userId", "user_123"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    public void testGetDueReviewsCount_S2S_MissingUserId_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/internal/courses/en_for_vi/reviews/due/count")
+                .header("X-Internal-Service-Token", "esquilospeak_internal_s2s_token_for_testing_32_bytes_long"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void testGetDueReviewsCount_S2S_EmptyUserId_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/internal/courses/en_for_vi/reviews/due/count")
+                .header("X-Internal-Service-Token", "esquilospeak_internal_s2s_token_for_testing_32_bytes_long")
+                .param("userId", "  "))
+                .andExpect(status().isBadRequest());
     }
 }
