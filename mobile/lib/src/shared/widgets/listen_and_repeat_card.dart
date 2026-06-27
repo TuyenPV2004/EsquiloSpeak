@@ -201,7 +201,7 @@ class _ListenAndRepeatCardState extends State<ListenAndRepeatCard> {
           child: Text(
             'Nghe câu mẫu, nhấn Mic để ghi âm và đọc theo:',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               fontStyle: FontStyle.italic,
             ),
             textAlign: TextAlign.center,
@@ -212,11 +212,11 @@ class _ListenAndRepeatCardState extends State<ListenAndRepeatCard> {
         // 2. Sample Audio playback & Transcript display
         Card(
           elevation: 0,
-          color: theme.colorScheme.surfaceVariant.withOpacity(0.2),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
-              color: theme.colorScheme.outline.withOpacity(0.1),
+              color: theme.colorScheme.outline.withValues(alpha: 0.1),
             ),
           ),
           child: Padding(
@@ -248,7 +248,7 @@ class _ListenAndRepeatCardState extends State<ListenAndRepeatCard> {
                       Text(
                         'Nhấn loa để nghe phát âm mẫu',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -274,13 +274,13 @@ class _ListenAndRepeatCardState extends State<ListenAndRepeatCard> {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: _isRecording
-                      ? Colors.red.withOpacity(0.2)
-                      : (canRecord ? theme.colorScheme.primary.withOpacity(0.1) : Colors.grey.withOpacity(0.1)),
+                      ? Colors.red.withValues(alpha: 0.2)
+                      : (canRecord ? theme.colorScheme.primary.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1)),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: _isRecording
                         ? Colors.red
-                        : (canRecord ? theme.colorScheme.primary : Colors.grey.withOpacity(0.3)),
+                        : (canRecord ? theme.colorScheme.primary : Colors.grey.withValues(alpha: 0.3)),
                     width: 3,
                   ),
                 ),
@@ -298,7 +298,7 @@ class _ListenAndRepeatCardState extends State<ListenAndRepeatCard> {
               icon: _isPlayingRecording
                   ? const Icon(Icons.stop_circle_outlined, color: Colors.orange)
                   : Icon(Icons.play_circle_fill_rounded,
-                      color: canPlayRecording ? Colors.orange : Colors.grey.withOpacity(0.4)),
+                      color: canPlayRecording ? Colors.orange : Colors.grey.withValues(alpha: 0.4)),
               iconSize: 56,
               onPressed: canPlayRecording
                   ? (_isPlayingRecording ? _stopPlayback : _playRecording)
@@ -315,7 +315,7 @@ class _ListenAndRepeatCardState extends State<ListenAndRepeatCard> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: _isRecording ? Colors.red : theme.colorScheme.onSurface.withOpacity(0.6),
+              color: _isRecording ? Colors.red : theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ),

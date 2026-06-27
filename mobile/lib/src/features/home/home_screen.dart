@@ -160,7 +160,7 @@ class HomeScreen extends ConsumerWidget {
                     // Học phần chính (Lesson Card)
                     Card(
                       elevation: 4,
-                      shadowColor: theme.colorScheme.primary.withOpacity(0.2),
+                      shadowColor: theme.colorScheme.primary.withValues(alpha: 0.2),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -175,7 +175,7 @@ class HomeScreen extends ConsumerWidget {
                                   ]
                                 : [
                                     theme.colorScheme.primary,
-                                    theme.colorScheme.primary.withOpacity(0.8),
+                                    theme.colorScheme.primary.withValues(alpha: 0.8),
                                   ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -252,7 +252,7 @@ class HomeScreen extends ConsumerWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withOpacity(0.2),
+                          color: theme.colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Padding(
@@ -262,7 +262,7 @@ class HomeScreen extends ConsumerWidget {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.amber.withOpacity(0.2),
+                                color: Colors.amber.withValues(alpha: 0.2),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -415,7 +415,7 @@ class HomeScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     return Card(
       elevation: 0,
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
@@ -435,7 +435,7 @@ class HomeScreen extends ConsumerWidget {
             Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],

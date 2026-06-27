@@ -198,5 +198,24 @@ void main() {
       expect(lessonA.status, 'completed');
       expect(lessonA.syncStatus, 'SYNCED');
     });
+
+    test('stores and retrieves lessonVersionId in CachedLessons', () async {
+      await database.into(database.cachedLessons).insert(
+        CachedLessonsCompanion.insert(
+          lessonId: 'lesson_versioned',
+          courseId: 'course_1',
+          title: 'Versioned Lesson',
+          status: 'available',
+          syncStatus: const Value('SYNCED'),
+          lessonVersionId: const Value('lesson_versioned_v5'),
+        ),
+      );
+
+      final retrieved = await (database.select(database.cachedLessons)
+            ..where((tbl) => tbl.lessonId.equals('lesson_versioned')))
+          .getSingle();
+
+      expect(retrieved.lessonVersionId, 'lesson_versioned_v5');
+    });
   });
 }

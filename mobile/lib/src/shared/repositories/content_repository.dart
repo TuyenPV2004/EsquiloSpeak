@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/network_error_helper.dart';
 import '../../core/device/device_id_service.dart';
+import '../network/api_error_parser.dart';
 import '../data/local/app_database.dart';
 import '../data/local/database_provider.dart';
 import '../models/course.dart';
@@ -192,6 +193,7 @@ class ContentRepository {
           courseId: Value(courseId),
           title: Value(data.title),
           status: const Value('available'),
+          lessonVersionId: Value(data.lessonVersionId),
         )
       );
 
@@ -263,10 +265,11 @@ class ContentRepository {
             .getSingleOrNull();
 
         final title = cachedLesson?.title ?? 'Bài học (Offline)';
+        final lessonVersionId = cachedLesson?.lessonVersionId ?? '${lessonId}_v1';
 
         return LessonDetailResponseModel(
           lessonId: lessonId,
-          lessonVersionId: '${lessonId}_v1',
+          lessonVersionId: lessonVersionId,
           title: title,
           questions: questions,
         );
@@ -278,6 +281,7 @@ class ContentRepository {
   Future<AttemptResponseModel> submitAttempt({
     required String courseId,
     required String lessonId,
+    required String lessonVersionId,
     required String questionId,
     required String questionVersionId,
     required String selectedAnswer,
@@ -300,7 +304,7 @@ class ContentRepository {
       'sourceLanguage': sourceLang,
       'targetLanguage': targetLang,
       'lessonId': lessonId,
-      'lessonVersionId': '${lessonId}_v1',
+      'lessonVersionId': lessonVersionId,
       'questionId': questionId,
       'questionVersionId': questionVersionId,
       'selectedAnswer': selectedAnswer,
@@ -317,10 +321,7 @@ class ContentRepository {
       return AttemptResponseModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (de) {
       final statusCode = de.response?.statusCode;
-      final responseData = de.response?.data;
-      final errorCode = responseData is Map<String, dynamic>
-          ? (responseData['error'] is Map<String, dynamic> ? responseData['error']['code'] : null)
-          : null;
+      final errorCode = ApiErrorParser.extractErrorCode(de.response?.data);
 
       if (statusCode == 400 && errorCode == 'STALE_CONTENT') {
         await _db.invalidateLessonCache(courseId: courseId, lessonId: lessonId);
@@ -351,7 +352,7 @@ class ContentRepository {
             sourceLanguage: Value(sourceLang),
             targetLanguage: Value(targetLang),
             lessonId: Value(lessonId),
-            lessonVersionId: Value('${lessonId}_v1'),
+            lessonVersionId: Value(lessonVersionId),
             questionId: Value(questionId),
             questionVersionId: Value(questionVersionId),
             selectedAnswer: Value(selectedAnswer),
@@ -390,7 +391,7 @@ class ContentRepository {
             sourceLanguage: Value(sourceLang),
             targetLanguage: Value(targetLang),
             lessonId: Value(lessonId),
-            lessonVersionId: Value('${lessonId}_v1'),
+            lessonVersionId: Value(lessonVersionId),
             questionId: Value(questionId),
             questionVersionId: Value(questionVersionId),
             selectedAnswer: Value(selectedAnswer),
@@ -445,10 +446,7 @@ class ContentRepository {
       return CompleteLessonResult.synced;
     } on DioException catch (de) {
       final statusCode = de.response?.statusCode;
-      final responseData = de.response?.data;
-      final errorCode = responseData is Map<String, dynamic>
-          ? responseData['code']
-          : null;
+      final errorCode = ApiErrorParser.extractErrorCode(de.response?.data);
 
       if (statusCode == 409 && errorCode == 'LESSON_ALREADY_COMPLETED') {
         await (_db.update(_db.cachedLessons)

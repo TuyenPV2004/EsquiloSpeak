@@ -40,7 +40,14 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
     _startTime = DateTime.now();
   }
 
-  Future<void> _submitAnswer(String courseId, String questionId, String questionVersionId, String selectedAnswer, String questionType) async {
+  Future<void> _submitAnswer(
+    String courseId,
+    String lessonVersionId,
+    String questionId,
+    String questionVersionId,
+    String selectedAnswer,
+    String questionType,
+  ) async {
     setState(() {
       _isSubmitting = true;
     });
@@ -54,6 +61,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
       final response = await repository.submitAttempt(
         courseId: courseId,
         lessonId: widget.lessonId,
+        lessonVersionId: lessonVersionId,
         questionId: questionId,
         questionVersionId: questionVersionId,
         selectedAnswer: selectedAnswer,
@@ -323,7 +331,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                     children: [
                       LinearProgressIndicator(
                         value: progress,
-                        backgroundColor: theme.colorScheme.surfaceVariant,
+                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
                         color: Colors.green,
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -340,6 +348,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                                   onComplete: () {
                                     _submitAnswer(
                                       courseId,
+                                      lessonData.lessonVersionId ?? '${lessonData.lessonId}_v1',
                                       question.questionId,
                                       question.versionId ?? '${question.questionId}_v1',
                                       'SPOKEN_SELF_REVIEWED',
@@ -369,7 +378,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                     children: [
                       LinearProgressIndicator(
                         value: progress,
-                        backgroundColor: theme.colorScheme.surfaceVariant,
+                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
                         color: Colors.green,
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -403,7 +412,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                             Text(
                               'Bạn đã tự đánh giá phần luyện nói này.',
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -414,7 +423,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                       if (_explanation.isNotEmpty) ...[
                         Card(
                           elevation: 0,
-                          color: Colors.green.withOpacity(0.1),
+                          color: Colors.green.withValues(alpha: 0.1),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -435,7 +444,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                                 Text(
                                   _explanation,
                                   style: TextStyle(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.8),
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                                     fontSize: 13,
                                   ),
                                 ),
@@ -486,7 +495,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                 children: [
                   LinearProgressIndicator(
                     value: progress,
-                    backgroundColor: theme.colorScheme.surfaceVariant,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     color: Colors.green,
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -494,7 +503,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                   
                   Card(
                     elevation: 0,
-                    color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -523,17 +532,17 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                         
                         if (isSelected) {
                           cardBorderColor = theme.colorScheme.primary;
-                          cardBgColor = theme.colorScheme.primary.withOpacity(0.05);
+                          cardBgColor = theme.colorScheme.primary.withValues(alpha: 0.05);
                         }
                         
                         if (_isChecked) {
                           final isCorrectOption = option.optionText == _correctAnswer;
                           if (isCorrectOption) {
                             cardBorderColor = Colors.green;
-                            cardBgColor = Colors.green.withOpacity(0.1);
+                            cardBgColor = Colors.green.withValues(alpha: 0.1);
                           } else if (isSelected) {
                             cardBorderColor = Colors.red;
-                            cardBgColor = Colors.red.withOpacity(0.1);
+                            cardBgColor = Colors.red.withValues(alpha: 0.1);
                           }
                         }
 
@@ -551,7 +560,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                               border: Border.all(
                                 color: cardBorderColor != Colors.transparent 
                                     ? cardBorderColor 
-                                    : theme.colorScheme.outline.withOpacity(0.2),
+                                    : theme.colorScheme.outline.withValues(alpha: 0.2),
                                 width: 2,
                               ),
                               borderRadius: BorderRadius.circular(16),
@@ -581,7 +590,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                   if (_isChecked) ...[
                     Card(
                       elevation: 0,
-                      color: _isCorrect ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                      color: _isCorrect ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -603,7 +612,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                               Text(
                                 'Giải thích: $_explanation',
                                 style: TextStyle(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.8),
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                                   fontSize: 13,
                                 ),
                               ),
@@ -623,6 +632,7 @@ class _ExerciseScreenState extends ConsumerState<ExerciseScreen> {
                               final selectedAnswer = question.options[_selectedOptionIndex!].optionText;
                               _submitAnswer(
                                 courseId,
+                                lessonData.lessonVersionId ?? '${lessonData.lessonId}_v1',
                                 question.questionId,
                                 question.versionId ?? '${question.questionId}_v1',
                                 selectedAnswer,

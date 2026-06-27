@@ -22,14 +22,14 @@ class EmptyView extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: theme.colorScheme.onSurface.withOpacity(0.3),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
               size: 56,
             ),
             const SizedBox(height: 16),
             Text(
               message,
               style: TextStyle(
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 fontSize: 15,
               ),
               textAlign: TextAlign.center,

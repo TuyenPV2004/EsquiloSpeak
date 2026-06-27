@@ -498,6 +498,17 @@ class $CachedLessonsTable extends CachedLessons
     requiredDuringInsert: false,
     defaultValue: const Constant('SYNCED'),
   );
+  static const VerificationMeta _lessonVersionIdMeta = const VerificationMeta(
+    'lessonVersionId',
+  );
+  @override
+  late final GeneratedColumn<String> lessonVersionId = GeneratedColumn<String>(
+    'lesson_version_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _cachedAtMeta = const VerificationMeta(
     'cachedAt',
   );
@@ -517,6 +528,7 @@ class $CachedLessonsTable extends CachedLessons
     title,
     status,
     syncStatus,
+    lessonVersionId,
     cachedAt,
   ];
   @override
@@ -569,6 +581,15 @@ class $CachedLessonsTable extends CachedLessons
         syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
       );
     }
+    if (data.containsKey('lesson_version_id')) {
+      context.handle(
+        _lessonVersionIdMeta,
+        lessonVersionId.isAcceptableOrUnknown(
+          data['lesson_version_id']!,
+          _lessonVersionIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('cached_at')) {
       context.handle(
         _cachedAtMeta,
@@ -604,6 +625,10 @@ class $CachedLessonsTable extends CachedLessons
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
       )!,
+      lessonVersionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lesson_version_id'],
+      ),
       cachedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}cached_at'],
@@ -623,6 +648,7 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
   final String title;
   final String status;
   final String syncStatus;
+  final String? lessonVersionId;
   final DateTime cachedAt;
   const CachedLesson({
     required this.lessonId,
@@ -630,6 +656,7 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
     required this.title,
     required this.status,
     required this.syncStatus,
+    this.lessonVersionId,
     required this.cachedAt,
   });
   @override
@@ -640,6 +667,9 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
     map['title'] = Variable<String>(title);
     map['status'] = Variable<String>(status);
     map['sync_status'] = Variable<String>(syncStatus);
+    if (!nullToAbsent || lessonVersionId != null) {
+      map['lesson_version_id'] = Variable<String>(lessonVersionId);
+    }
     map['cached_at'] = Variable<DateTime>(cachedAt);
     return map;
   }
@@ -651,6 +681,9 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
       title: Value(title),
       status: Value(status),
       syncStatus: Value(syncStatus),
+      lessonVersionId: lessonVersionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lessonVersionId),
       cachedAt: Value(cachedAt),
     );
   }
@@ -666,6 +699,7 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
       title: serializer.fromJson<String>(json['title']),
       status: serializer.fromJson<String>(json['status']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      lessonVersionId: serializer.fromJson<String?>(json['lessonVersionId']),
       cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
     );
   }
@@ -678,6 +712,7 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
       'title': serializer.toJson<String>(title),
       'status': serializer.toJson<String>(status),
       'syncStatus': serializer.toJson<String>(syncStatus),
+      'lessonVersionId': serializer.toJson<String?>(lessonVersionId),
       'cachedAt': serializer.toJson<DateTime>(cachedAt),
     };
   }
@@ -688,6 +723,7 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
     String? title,
     String? status,
     String? syncStatus,
+    Value<String?> lessonVersionId = const Value.absent(),
     DateTime? cachedAt,
   }) => CachedLesson(
     lessonId: lessonId ?? this.lessonId,
@@ -695,6 +731,9 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
     title: title ?? this.title,
     status: status ?? this.status,
     syncStatus: syncStatus ?? this.syncStatus,
+    lessonVersionId: lessonVersionId.present
+        ? lessonVersionId.value
+        : this.lessonVersionId,
     cachedAt: cachedAt ?? this.cachedAt,
   );
   CachedLesson copyWithCompanion(CachedLessonsCompanion data) {
@@ -706,6 +745,9 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      lessonVersionId: data.lessonVersionId.present
+          ? data.lessonVersionId.value
+          : this.lessonVersionId,
       cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
     );
   }
@@ -718,14 +760,22 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
           ..write('title: $title, ')
           ..write('status: $status, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('lessonVersionId: $lessonVersionId, ')
           ..write('cachedAt: $cachedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(lessonId, courseId, title, status, syncStatus, cachedAt);
+  int get hashCode => Object.hash(
+    lessonId,
+    courseId,
+    title,
+    status,
+    syncStatus,
+    lessonVersionId,
+    cachedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -735,6 +785,7 @@ class CachedLesson extends DataClass implements Insertable<CachedLesson> {
           other.title == this.title &&
           other.status == this.status &&
           other.syncStatus == this.syncStatus &&
+          other.lessonVersionId == this.lessonVersionId &&
           other.cachedAt == this.cachedAt);
 }
 
@@ -744,6 +795,7 @@ class CachedLessonsCompanion extends UpdateCompanion<CachedLesson> {
   final Value<String> title;
   final Value<String> status;
   final Value<String> syncStatus;
+  final Value<String?> lessonVersionId;
   final Value<DateTime> cachedAt;
   final Value<int> rowid;
   const CachedLessonsCompanion({
@@ -752,6 +804,7 @@ class CachedLessonsCompanion extends UpdateCompanion<CachedLesson> {
     this.title = const Value.absent(),
     this.status = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.lessonVersionId = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -761,6 +814,7 @@ class CachedLessonsCompanion extends UpdateCompanion<CachedLesson> {
     required String title,
     required String status,
     this.syncStatus = const Value.absent(),
+    this.lessonVersionId = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : lessonId = Value(lessonId),
@@ -773,6 +827,7 @@ class CachedLessonsCompanion extends UpdateCompanion<CachedLesson> {
     Expression<String>? title,
     Expression<String>? status,
     Expression<String>? syncStatus,
+    Expression<String>? lessonVersionId,
     Expression<DateTime>? cachedAt,
     Expression<int>? rowid,
   }) {
@@ -782,6 +837,7 @@ class CachedLessonsCompanion extends UpdateCompanion<CachedLesson> {
       if (title != null) 'title': title,
       if (status != null) 'status': status,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (lessonVersionId != null) 'lesson_version_id': lessonVersionId,
       if (cachedAt != null) 'cached_at': cachedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -793,6 +849,7 @@ class CachedLessonsCompanion extends UpdateCompanion<CachedLesson> {
     Value<String>? title,
     Value<String>? status,
     Value<String>? syncStatus,
+    Value<String?>? lessonVersionId,
     Value<DateTime>? cachedAt,
     Value<int>? rowid,
   }) {
@@ -802,6 +859,7 @@ class CachedLessonsCompanion extends UpdateCompanion<CachedLesson> {
       title: title ?? this.title,
       status: status ?? this.status,
       syncStatus: syncStatus ?? this.syncStatus,
+      lessonVersionId: lessonVersionId ?? this.lessonVersionId,
       cachedAt: cachedAt ?? this.cachedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -825,6 +883,9 @@ class CachedLessonsCompanion extends UpdateCompanion<CachedLesson> {
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
+    if (lessonVersionId.present) {
+      map['lesson_version_id'] = Variable<String>(lessonVersionId.value);
+    }
     if (cachedAt.present) {
       map['cached_at'] = Variable<DateTime>(cachedAt.value);
     }
@@ -842,6 +903,7 @@ class CachedLessonsCompanion extends UpdateCompanion<CachedLesson> {
           ..write('title: $title, ')
           ..write('status: $status, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('lessonVersionId: $lessonVersionId, ')
           ..write('cachedAt: $cachedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3132,6 +3194,7 @@ typedef $$CachedLessonsTableCreateCompanionBuilder =
       required String title,
       required String status,
       Value<String> syncStatus,
+      Value<String?> lessonVersionId,
       Value<DateTime> cachedAt,
       Value<int> rowid,
     });
@@ -3142,6 +3205,7 @@ typedef $$CachedLessonsTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String> status,
       Value<String> syncStatus,
+      Value<String?> lessonVersionId,
       Value<DateTime> cachedAt,
       Value<int> rowid,
     });
@@ -3177,6 +3241,11 @@ class $$CachedLessonsTableFilterComposer
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lessonVersionId => $composableBuilder(
+    column: $table.lessonVersionId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3220,6 +3289,11 @@ class $$CachedLessonsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get lessonVersionId => $composableBuilder(
+    column: $table.lessonVersionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
@@ -3249,6 +3323,11 @@ class $$CachedLessonsTableAnnotationComposer
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lessonVersionId => $composableBuilder(
+    column: $table.lessonVersionId,
     builder: (column) => column,
   );
 
@@ -3292,6 +3371,7 @@ class $$CachedLessonsTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
+                Value<String?> lessonVersionId = const Value.absent(),
                 Value<DateTime> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CachedLessonsCompanion(
@@ -3300,6 +3380,7 @@ class $$CachedLessonsTableTableManager
                 title: title,
                 status: status,
                 syncStatus: syncStatus,
+                lessonVersionId: lessonVersionId,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),
@@ -3310,6 +3391,7 @@ class $$CachedLessonsTableTableManager
                 required String title,
                 required String status,
                 Value<String> syncStatus = const Value.absent(),
+                Value<String?> lessonVersionId = const Value.absent(),
                 Value<DateTime> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CachedLessonsCompanion.insert(
@@ -3318,6 +3400,7 @@ class $$CachedLessonsTableTableManager
                 title: title,
                 status: status,
                 syncStatus: syncStatus,
+                lessonVersionId: lessonVersionId,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),

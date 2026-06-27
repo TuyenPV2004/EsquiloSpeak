@@ -90,7 +90,7 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
                 children: [
                   LinearProgressIndicator(
                     value: 1.0,
-                    backgroundColor: theme.colorScheme.surfaceVariant,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   const SizedBox(height: 24),
@@ -114,7 +114,7 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                             side: BorderSide(
-                              color: theme.colorScheme.outline.withOpacity(0.15),
+                              color: theme.colorScheme.outline.withValues(alpha: 0.15),
                             ),
                           ),
                           child: Padding(

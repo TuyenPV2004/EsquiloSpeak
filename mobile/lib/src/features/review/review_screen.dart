@@ -172,7 +172,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       'Bạn đã hoàn thành việc ôn tập tất cả các từ đến hạn.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -214,7 +214,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withOpacity(0.15),
+                          color: theme.colorScheme.outline.withValues(alpha: 0.15),
                         ),
                       ),
                       child: Padding(
@@ -263,7 +263,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                                     item.explanation,
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -277,7 +277,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                                   });
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+                                  backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.1),
                                   foregroundColor: theme.colorScheme.secondary,
                                   elevation: 0,
                                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -298,7 +298,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       'Mức độ ghi nhớ của bạn thế nào?',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                         fontSize: 13,
                       ),
                     ),
@@ -356,8 +356,8 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              border: Border.all(color: color.withOpacity(0.4)),
-              color: color.withOpacity(0.05),
+              border: Border.all(color: color.withValues(alpha: 0.4)),
+              color: color.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -374,7 +374,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                   code,
                   style: TextStyle(
                     fontSize: 10,
-                    color: color.withOpacity(0.7),
+                    color: color.withValues(alpha: 0.7),
                   ),
                 ),
               ],

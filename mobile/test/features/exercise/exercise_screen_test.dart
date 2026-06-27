@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +15,7 @@ class StubContentRepository implements ContentRepository {
   late Future<AttemptResponseModel> Function({
     required String courseId,
     required String lessonId,
+    required String lessonVersionId,
     required String questionId,
     required String questionVersionId,
     required String selectedAnswer,
@@ -34,6 +34,7 @@ class StubContentRepository implements ContentRepository {
   Future<AttemptResponseModel> submitAttempt({
     required String courseId,
     required String lessonId,
+    required String lessonVersionId,
     required String questionId,
     required String questionVersionId,
     required String selectedAnswer,
@@ -44,6 +45,7 @@ class StubContentRepository implements ContentRepository {
     return submitAttemptHandler(
       courseId: courseId,
       lessonId: lessonId,
+      lessonVersionId: lessonVersionId,
       questionId: questionId,
       questionVersionId: questionVersionId,
       selectedAnswer: selectedAnswer,
@@ -109,6 +111,7 @@ void main() {
     stubContentRepository.getLessonDetailHandler = (courseId, lessonId) async {
       return LessonDetailResponseModel(
         lessonId: 'lesson_1',
+        lessonVersionId: 'lesson_server_v2',
         title: 'Greeting Lesson',
         questions: mockQuestions,
       );
@@ -150,6 +153,7 @@ void main() {
       stubContentRepository.submitAttemptHandler = ({
         required courseId,
         required lessonId,
+        required lessonVersionId,
         required questionId,
         required questionVersionId,
         required selectedAnswer,
@@ -196,9 +200,12 @@ void main() {
     });
 
     testWidgets('allows completion when questions are correctly answered and completeLesson returns synced', (WidgetTester tester) async {
+      final submittedLessonVersions = <String>[];
+
       stubContentRepository.submitAttemptHandler = ({
         required courseId,
         required lessonId,
+        required lessonVersionId,
         required questionId,
         required questionVersionId,
         required selectedAnswer,
@@ -206,6 +213,7 @@ void main() {
         required usedHint,
         required clientRequestId,
       }) async {
+        submittedLessonVersions.add(lessonVersionId);
         return AttemptResponseModel(
           isCorrect: true, // Correct answer
           correctAnswer: 'Hello',
@@ -243,12 +251,14 @@ void main() {
 
       // Verify it navigated to Home Screen
       expect(find.text('Home Screen'), findsOneWidget);
+      expect(submittedLessonVersions, ['lesson_server_v2', 'lesson_server_v2']);
     });
 
     testWidgets('shows orange SnackBar when completeLesson returns pendingOffline', (WidgetTester tester) async {
       stubContentRepository.submitAttemptHandler = ({
         required courseId,
         required lessonId,
+        required lessonVersionId,
         required questionId,
         required questionVersionId,
         required selectedAnswer,
@@ -299,6 +309,7 @@ void main() {
       stubContentRepository.submitAttemptHandler = ({
         required courseId,
         required lessonId,
+        required lessonVersionId,
         required questionId,
         required questionVersionId,
         required selectedAnswer,

@@ -29,7 +29,7 @@ class AppButton extends StatelessWidget {
         foregroundColor = theme.colorScheme.onPrimary;
         break;
       case AppButtonStyle.secondary:
-        backgroundColor = theme.colorScheme.secondary.withOpacity(0.1);
+        backgroundColor = theme.colorScheme.secondary.withValues(alpha: 0.1);
         foregroundColor = theme.colorScheme.secondary;
         break;
       case AppButtonStyle.danger:

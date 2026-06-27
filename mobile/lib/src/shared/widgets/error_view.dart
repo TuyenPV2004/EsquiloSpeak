@@ -37,7 +37,7 @@ class ErrorView extends StatelessWidget {
             Text(
               message,
               style: TextStyle(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,
@@ -49,7 +49,7 @@ class ErrorView extends StatelessWidget {
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Thử lại'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+                  backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.1),
                   foregroundColor: theme.colorScheme.secondary,
                   elevation: 0,
                 ),

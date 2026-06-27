@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/src/features/lesson/lesson_screen.dart';
-import 'package:mobile/src/features/lesson/lesson_providers.dart';
 import 'package:mobile/src/features/home/home_providers.dart';
 import 'package:mobile/src/shared/repositories/content_repository.dart';
 import 'package:mobile/src/shared/models/question.dart';

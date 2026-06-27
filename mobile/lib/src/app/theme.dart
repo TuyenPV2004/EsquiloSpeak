@@ -12,7 +12,7 @@ class AppTheme {
       brightness: Brightness.light,
       primary: primaryColor,
       secondary: const Color(0xFF3E2723), // Warm brown
-      background: const Color(0xFFFFFDF9), // Warm eggshell white
+      surface: const Color(0xFFFFFDF9), // Warm eggshell white
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFFFFFDF9),
@@ -33,7 +33,7 @@ class AppTheme {
       brightness: Brightness.dark,
       primary: accentColor,
       secondary: const Color(0xFFD7CCC8),
-      background: const Color(0xFF0F0F1A), // Deep dark space/navy
+      surface: const Color(0xFF0F0F1A), // Deep dark space/navy
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Color(0xFF0F0F1A),

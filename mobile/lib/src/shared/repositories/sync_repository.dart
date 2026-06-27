@@ -7,6 +7,7 @@ import '../../core/monitoring/monitoring_provider.dart';
 import 'package:mobile/src/shared/data/local/app_database.dart';
 import 'package:mobile/src/shared/data/local/database_provider.dart';
 import '../../core/network/network_error_helper.dart';
+import '../network/api_error_parser.dart';
 
 class SyncAuthRequiredException implements Exception {
   final String message;
@@ -60,10 +61,7 @@ class SyncRepository {
               .write(const CachedLessonsCompanion(syncStatus: Value('SYNCED')));
         } on DioException catch (de) {
           final statusCode = de.response?.statusCode;
-          final responseData = de.response?.data;
-          final errorCode = responseData is Map<String, dynamic>
-              ? responseData['code']
-              : null;
+          final errorCode = ApiErrorParser.extractErrorCode(de.response?.data);
 
           if (statusCode == 409 && errorCode == 'LESSON_ALREADY_COMPLETED') {
             await (_db.update(_db.cachedLessons)
@@ -115,7 +113,7 @@ class SyncRepository {
           }
         }
       }
-    } on SyncAuthRequiredException catch (sae) {
+    } on SyncAuthRequiredException {
       _monitoring.logEvent('sync_lessons_auth_required_aborted');
       rethrow;
     } catch (e) {

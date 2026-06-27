@@ -27,7 +27,7 @@ class AppCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         border: hasBorder
             ? Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.15),
+                color: theme.colorScheme.outline.withValues(alpha: 0.15),
                 width: 1,
               )
             : null,
@@ -35,7 +35,7 @@ class AppCard extends StatelessWidget {
             ? null
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),

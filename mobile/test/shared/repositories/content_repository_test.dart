@@ -104,6 +104,7 @@ void main() {
       final response = await contentRepository.submitAttempt(
         courseId: 'en_for_vi',
         lessonId: 'lesson_1',
+        lessonVersionId: 'lesson_server_v2',
         questionId: 'q_1',
         questionVersionId: 'qv1',
         selectedAnswer: 'Xin chào',
@@ -116,9 +117,10 @@ void main() {
       expect(fakeDeviceIdService.callCount, 1);
       expect(capturedPayload, isNotNull);
       expect(capturedPayload!['deviceId'], 'dev_test_123');
+      expect(capturedPayload!['lessonVersionId'], 'lesson_server_v2');
     });
 
-    test('offline DioException stores the correct device ID in drift DB', () async {
+    test('offline DioException stores the correct device ID and lesson version in drift DB', () async {
       fakeDio.postHandler = <T>(path, {data}) async {
         throw DioException(
           requestOptions: RequestOptions(path: path),
@@ -130,6 +132,7 @@ void main() {
         await contentRepository.submitAttempt(
           courseId: 'en_for_vi',
           lessonId: 'lesson_1',
+          lessonVersionId: 'lesson_server_v2',
           questionId: 'q_1',
           questionVersionId: 'qv1',
           selectedAnswer: 'Xin chào',
@@ -150,9 +153,10 @@ void main() {
           .getSingle();
 
       expect(savedAttempt.deviceId, 'dev_test_123');
+      expect(savedAttempt.lessonVersionId, 'lesson_server_v2');
     });
 
-    test('offline SocketException stores the correct device ID in drift DB', () async {
+    test('offline SocketException stores the correct device ID and lesson version in drift DB', () async {
       fakeDio.postHandler = <T>(path, {data}) async {
         throw const SocketException('No Internet');
       };
@@ -161,6 +165,7 @@ void main() {
         await contentRepository.submitAttempt(
           courseId: 'en_for_vi',
           lessonId: 'lesson_1',
+          lessonVersionId: 'lesson_server_v2',
           questionId: 'q_1',
           questionVersionId: 'qv1',
           selectedAnswer: 'Tạm biệt',
@@ -181,6 +186,7 @@ void main() {
           .getSingle();
 
       expect(savedAttempt.deviceId, 'dev_test_123');
+      expect(savedAttempt.lessonVersionId, 'lesson_server_v2');
     });
 
     test('online submission returning 400 STALE_CONTENT invalidates cache and throws StaleContentException', () async {
@@ -214,6 +220,7 @@ void main() {
         () => contentRepository.submitAttempt(
           courseId: 'en_for_vi',
           lessonId: 'lesson_1',
+          lessonVersionId: 'lesson_server_v2',
           questionId: 'q_1',
           questionVersionId: 'qv1',
           selectedAnswer: 'Xin chào',

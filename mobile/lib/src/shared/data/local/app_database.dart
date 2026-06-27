@@ -24,6 +24,7 @@ class CachedLessons extends Table {
   TextColumn get title => text()();
   TextColumn get status => text()();
   TextColumn get syncStatus => text().withDefault(const Constant('SYNCED'))();
+  TextColumn get lessonVersionId => text().nullable()();
   DateTimeColumn get cachedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
@@ -84,10 +85,10 @@ class PendingAttempts extends Table {
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
-  AppDatabase.forTesting(QueryExecutor executor) : super(executor);
+  AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -95,6 +96,9 @@ class AppDatabase extends _$AppDatabase {
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(cachedLessons, cachedLessons.syncStatus);
+          }
+          if (from < 3) {
+            await m.addColumn(cachedLessons, cachedLessons.lessonVersionId);
           }
         },
       );

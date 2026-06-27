@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/network/api_client.dart';
 import '../../core/monitoring/monitoring_provider.dart';
-import '../../core/config/preference_keys.dart';
 import '../../core/device/device_id_service.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -75,8 +74,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              theme.colorScheme.primary.withOpacity(0.15),
-              theme.colorScheme.background,
+              theme.colorScheme.primary.withValues(alpha: 0.15),
+              theme.colorScheme.surface,
             ],
           ),
         ),
@@ -94,7 +93,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.2),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -110,7 +109,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onBackground,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -118,14 +117,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   'Tích lũy từng từ, nói được từng ngày. Hãy thiết lập mục tiêu học tập của bạn.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onBackground.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 const Spacer(),
                 // Khảo sát thời gian học
                 Card(
                   elevation: 0,
-                  color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -210,7 +209,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: isSelected ? theme.colorScheme.onPrimary.withOpacity(0.8) : theme.colorScheme.onSurface.withOpacity(0.6),
+              color: isSelected ? theme.colorScheme.onPrimary.withValues(alpha: 0.8) : theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ],

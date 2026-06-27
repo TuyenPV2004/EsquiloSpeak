@@ -25,10 +25,7 @@ class ProgressScreen extends ConsumerWidget {
           onRetry: () => ref.invalidate(progressSummaryProvider(courseId)),
         ),
         data: (data) {
-          final showMasteryUnit1 = data.courseCompletionPercent / 100.0;
-          final showMasteryUnit2 = data.courseCompletionPercent > 50 
-              ? ((data.courseCompletionPercent - 50) * 2) / 100.0 
-              : 0.0;
+          final completionRatio = (data.courseCompletionPercent / 100).clamp(0.0, 1.0);
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -41,14 +38,13 @@ class ProgressScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Trạng thái Streak hàng ngày
                     Card(
                       elevation: 0,
-                      color: theme.colorScheme.primary.withOpacity(0.05),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.05),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
-                          color: theme.colorScheme.primary.withOpacity(0.2),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Padding(
@@ -66,8 +62,8 @@ class ProgressScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    data.streak > 0 
-                                        ? 'Chuỗi học ${data.streak} ngày!' 
+                                    data.streak > 0
+                                        ? 'Chuỗi học ${data.streak} ngày!'
                                         : 'Chưa có chuỗi học nào',
                                     style: theme.textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
@@ -76,8 +72,8 @@ class ProgressScreen extends ConsumerWidget {
                                   const SizedBox(height: 4),
                                   Text(
                                     data.streak > 0
-                                        ? 'Bạn đang làm rất tốt, duy trì đều đặn nhé!'
-                                        : 'Hãy bắt đầu bài học đầu tiên để tạo chuỗi học ngay!',
+                                        ? 'Bạn đang duy trì nhịp học đều đặn.'
+                                        : 'Hãy bắt đầu bài học đầu tiên để tạo chuỗi học.',
                                     style: const TextStyle(
                                       fontSize: 13,
                                       color: Colors.grey,
@@ -91,8 +87,6 @@ class ProgressScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
-                    // Thống kê chi tiết học tập
                     Text(
                       'Thống kê tích lũy',
                       style: theme.textTheme.titleMedium?.copyWith(
@@ -100,26 +94,25 @@ class ProgressScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
                     Row(
                       children: [
                         Expanded(
                           child: _buildStatTile(
-                            context, 
-                            '${data.learnedWordsCount}', 
-                            'Từ vựng đã học', 
-                            Icons.menu_book_rounded, 
-                            theme.colorScheme.primary
+                            context,
+                            '${data.learnedWordsCount}',
+                            'Từ vựng đã học',
+                            Icons.menu_book_rounded,
+                            theme.colorScheme.primary,
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildStatTile(
-                            context, 
-                            '${data.completedLessonsCount}', 
-                            'Bài học đã làm', 
-                            Icons.check_circle_rounded, 
-                            Colors.green
+                            context,
+                            '${data.completedLessonsCount}/${data.totalLessonsCount}',
+                            'Bài học đã làm',
+                            Icons.check_circle_rounded,
+                            Colors.green,
                           ),
                         ),
                       ],
@@ -129,53 +122,81 @@ class ProgressScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: _buildStatTile(
-                            context, 
-                            '${data.accuracy.toStringAsFixed(1)}%', 
-                            'Độ chính xác', 
-                            Icons.gps_fixed_rounded, 
-                            Colors.blue
+                            context,
+                            '${data.accuracy.toStringAsFixed(1)}%',
+                            'Độ chính xác',
+                            Icons.gps_fixed_rounded,
+                            Colors.blue,
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildStatTile(
-                            context, 
-                            '${data.dueReviewCount}', 
-                            'Đang chờ ôn', 
-                            Icons.history_rounded, 
-                            Colors.amber
+                            context,
+                            '${data.dueReviewCount}',
+                            'Đang chờ ôn',
+                            Icons.history_rounded,
+                            Colors.amber,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 24),
-                    
-                    // Trạng thái Mastery (Mức độ thành thạo)
                     Text(
-                      'Độ thành thạo theo chủ đề',
+                      'Tổng quan khóa học',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
                     Card(
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withOpacity(0.15),
+                          color: theme.colorScheme.outline.withValues(alpha: 0.15),
                         ),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildMasteryBar(context, 'Chào hỏi xã giao', showMasteryUnit1),
-                            const Divider(height: 24),
-                            _buildMasteryBar(context, 'Số đếm cơ bản', showMasteryUnit2),
-                            const Divider(height: 24),
-                            _buildMasteryBar(context, 'Gia đình & Bản thân', 0.0),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Hoàn thành khóa học',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  '${data.courseCompletionPercent.toStringAsFixed(1)}%',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            LinearProgressIndicator(
+                              value: completionRatio,
+                              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                              color: theme.colorScheme.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Dữ liệu do máy chủ ghi nhận từ bài học, bài làm và phiên ôn tập đã đồng bộ.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -191,11 +212,11 @@ class ProgressScreen extends ConsumerWidget {
   }
 
   Widget _buildStatTile(
-    BuildContext context, 
-    String value, 
-    String label, 
-    IconData icon, 
-    Color color
+    BuildContext context,
+    String value,
+    String label,
+    IconData icon,
+    Color color,
   ) {
     final theme = Theme.of(context);
     return Container(
@@ -203,7 +224,7 @@ class ProgressScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.15),
+          color: theme.colorScheme.outline.withValues(alpha: 0.15),
         ),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -227,47 +248,11 @@ class ProgressScreen extends ConsumerWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMasteryBar(BuildContext context, String topic, double value) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              topic,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-            Text(
-              '${(value * 100).toInt()}%',
-              style: TextStyle(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: value,
-          backgroundColor: theme.colorScheme.surfaceVariant,
-          color: theme.colorScheme.primary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ],
     );
   }
 }
