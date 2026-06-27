@@ -19,9 +19,11 @@ Thumbs.db
 # Local agents configuration
 .agents/
 
-# Project ignores requested by user
-docs/*/
+# Local project scripts generated for experiments
 scripts/
+
+# Local portable tools for sandboxed Codex runs
+.tools/
 
 # Java and Spring Boot (Backend)
 **/target/
@@ -38,11 +40,9 @@ scripts/
 .classpath
 bin/
 *.sql
-docs/
-*.md
 
-# Cho phép theo dõi các tệp SQL di cư của Flyway
-!database/migration/**/*.sql
+# Cho phép theo dõi các tệp SQL di cư của Flyway trong các microservices
+!backend/**/src/main/resources/db/migration/**/*.sql
 
 # Cho phép theo dõi các tệp SQL khởi tạo DB trong infra
 !infra/postgres/init/*.sql
@@ -58,3 +58,5 @@ mobile/analysis_output.txt
 
 # GitHub local modernization experiments
 .github/modernize/
+docs/
+*.md

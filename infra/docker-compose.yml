@@ -1,10 +1,31 @@
+x-backend-service: &backend-service
+  image: maven:3.9.9-eclipse-temurin-24
+  working_dir: /workspace/backend
+  volumes:
+    - ../backend:/workspace/backend
+    - maven_cache:/root/.m2
+  environment: &backend-environment
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-EsquiloSpeak_db}
+    SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-esquilospeak}
+    SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-123456}
+    JWT_SECRET: ${JWT_SECRET:-}
+    ANALYTICS_HASH_SECRET: ${ANALYTICS_HASH_SECRET:-}
+    INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+    EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+    LEARNING_SERVICE_URL: http://learning-service
+  profiles:
+    - backend
+  restart: unless-stopped
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: esquilospeak_postgres
     restart: unless-stopped
-    env_file:
-      - ../.env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-EsquiloSpeak_db}
+      POSTGRES_USER: ${POSTGRES_USER:-esquilospeak}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -16,5 +37,69 @@ services:
       timeout: 5s
       retries: 5
 
+  discovery-server:
+    <<: *backend-service
+    container_name: esquilospeak_discovery_server
+    command: mvn -pl discovery-server spring-boot:run
+    ports:
+      - "8761:8761"
+    environment:
+      EUREKA_SERVER_URL: http://discovery-server:8761/eureka/
+
+  api-gateway:
+    <<: *backend-service
+    container_name: esquilospeak_api_gateway
+    command: mvn -pl api-gateway spring-boot:run
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discovery-server
+
+  auth-service:
+    <<: *backend-service
+    container_name: esquilospeak_auth_service
+    command: mvn -pl auth-service spring-boot:run
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+
+  content-service:
+    <<: *backend-service
+    container_name: esquilospeak_content_service
+    command: mvn -pl content-service spring-boot:run
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+
+  learning-service:
+    <<: *backend-service
+    container_name: esquilospeak_learning_service
+    command: mvn -pl learning-service spring-boot:run
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+
+  media-service:
+    <<: *backend-service
+    container_name: esquilospeak_media_service
+    command: mvn -pl media-service spring-boot:run
+    ports:
+      - "8086:8086"
+    depends_on:
+      - discovery-server
+
 volumes:
   postgres_data:
+  maven_cache:

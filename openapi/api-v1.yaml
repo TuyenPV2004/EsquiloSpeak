@@ -365,7 +365,21 @@ paths:
                     type: boolean
                     example: false
         '400':
-          $ref: '#/components/responses/ErrorResponse'
+          description: >
+            Attempt request is invalid. Known error codes include
+            INVALID_ATTEMPT_REQUEST, COURSE_ID_MISMATCH, LESSON_NOT_IN_COURSE,
+            QUESTION_NOT_IN_LESSON, QUESTION_NOT_FOUND, MISSING_QUESTION_VERSION,
+            STALE_CONTENT and INVALID_ATTEMPT_TYPE.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/ErrorResponse/content/application~1json/schema'
+        '409':
+          description: clientRequestId was already used for a different attempt payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/ErrorResponse/content/application~1json/schema'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
@@ -521,7 +535,11 @@ paths:
   /sync/attempts:
     post:
       summary: Sync offline attempts
-      description: Uploads a list of cached offline question attempts to reconcile progress.
+      description: >
+        Uploads cached offline question attempts to reconcile progress. Each attempt
+        is validated independently; permanent validation failures return FAILED, duplicate
+        retries return DUPLICATE, and transient content-service/version lookup failures return
+        RETRYABLE_FAILED.
       requestBody:
         required: true
         content:
@@ -634,16 +652,28 @@ components:
           example: "crq_001"
         status:
           type: string
-          enum: [SYNCED, DUPLICATE, FAILED]
+          enum: [SYNCED, DUPLICATE, FAILED, RETRYABLE_FAILED]
           example: "SYNCED"
         errorCode:
           type: string
           nullable: true
-          example: "QUESTION_NOT_FOUND"
+          enum:
+            - IDEMPOTENCY_CONFLICT
+            - INVALID_ATTEMPT_REQUEST
+            - COURSE_ID_MISMATCH
+            - LESSON_NOT_IN_COURSE
+            - QUESTION_NOT_IN_LESSON
+            - QUESTION_NOT_FOUND
+            - MISSING_QUESTION_VERSION
+            - QUESTION_VERSION_MISSING
+            - STALE_CONTENT
+            - INVALID_ATTEMPT_TYPE
+            - UNKNOWN_ERROR
+          example: "IDEMPOTENCY_CONFLICT"
         message:
           type: string
           nullable: true
-          example: "Question not found in content-service"
+          example: "clientRequestId was already used for a different attempt payload."
 
   responses:
     ErrorResponse:
@@ -664,6 +694,22 @@ components:
                 properties:
                   code:
                     type: string
+                    enum:
+                      - BAD_REQUEST
+                      - INVALID_ATTEMPT_REQUEST
+                      - COURSE_ID_MISMATCH
+                      - LESSON_NOT_IN_COURSE
+                      - QUESTION_NOT_IN_LESSON
+                      - QUESTION_NOT_FOUND
+                      - MISSING_QUESTION_VERSION
+                      - QUESTION_VERSION_MISSING
+                      - STALE_CONTENT
+                      - INVALID_ATTEMPT_TYPE
+                      - IDEMPOTENCY_CONFLICT
+                      - LESSON_NOT_FOUND
+                      - EMPTY_LESSON
+                      - LESSON_INCOMPLETE
+                      - GENERIC_ERROR
                     example: "BAD_REQUEST"
                   message:
                     type: string
