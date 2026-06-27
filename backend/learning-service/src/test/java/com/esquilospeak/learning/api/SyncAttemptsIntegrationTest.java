@@ -1,11 +1,12 @@
 package com.esquilospeak.learning.api;
 
+import com.esquilospeak.learning.BaseIntegrationTest;
+import com.esquilospeak.learning.client.ContentClient;
 import com.esquilospeak.learning.config.JwtAuthenticationFilter;
 import com.esquilospeak.learning.config.JwtTokenUtil;
 import com.esquilospeak.learning.domain.QuestionAttempt;
 import com.esquilospeak.learning.infrastructure.QuestionAttemptRepository;
 import com.esquilospeak.learning.infrastructure.ReviewItemRepository;
-import com.esquilospeak.learning.client.ContentClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,11 +23,12 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import com.esquilospeak.learning.BaseIntegrationTest;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Transactional
@@ -50,7 +52,7 @@ public class SyncAttemptsIntegrationTest extends BaseIntegrationTest {
     private ObjectMapper objectMapper;
 
     private String validToken;
-    private String userId = "user_sync_test";
+    private final String userId = "user_sync_test";
 
     @BeforeEach
     public void setUp() {
@@ -62,71 +64,35 @@ public class SyncAttemptsIntegrationTest extends BaseIntegrationTest {
 
     @Test
     public void testBatchSync_Integration() throws Exception {
-        String clientReqNew = "req_" + UUID.randomUUID().toString();
-        String clientReqDup = "req_" + UUID.randomUUID().toString();
-        String clientReqStale = "req_" + UUID.randomUUID().toString();
+        String clientReqNew = "req_" + UUID.randomUUID();
+        String clientReqDup = "req_" + UUID.randomUUID();
+        String clientReqStale = "req_" + UUID.randomUUID();
 
         QuestionAttempt existing = new QuestionAttempt(
-                "att_" + UUID.randomUUID().toString(),
+                "att_" + UUID.randomUUID(),
                 clientReqDup,
                 userId,
                 "course_1",
                 "lesson_1",
                 "q_dup",
                 "q_dup_v1",
-                "Xin chào",
+                "Hello",
                 true,
                 1500,
-                LocalDateTime.now()
+                LocalDateTime.parse("2026-06-23T10:00:00")
         );
         questionAttemptRepository.saveAndFlush(existing);
 
-        AttemptController.QuestionDto qNew = new AttemptController.QuestionDto();
-        qNew.setQuestionId("q_new");
-        qNew.setCorrectAnswer("CorrectNew");
-        qNew.setPrompt("New Prompt");
-        qNew.setType("multiple_choice");
-        qNew.setVersionId("q_new_v1");
-        when(contentClient.getQuestion("q_new")).thenReturn(qNew);
-
-        AttemptController.QuestionDto qStale = new AttemptController.QuestionDto();
-        qStale.setQuestionId("q_stale");
-        qStale.setCorrectAnswer("CorrectStale");
-        qStale.setPrompt("Stale Prompt");
-        qStale.setType("multiple_choice");
-        qStale.setVersionId("q_stale_v2_new");
-        when(contentClient.getQuestion("q_stale")).thenReturn(qStale);
+        when(contentClient.getLessonQuestionIds("course_1", "lesson_1")).thenReturn(Arrays.asList("q_new", "q_dup", "q_stale"));
+        when(contentClient.getQuestion("q_new")).thenReturn(question("q_new", "q_new_v1", "CorrectNew"));
+        when(contentClient.getQuestion("q_stale")).thenReturn(question("q_stale", "q_stale_v2_new", "CorrectStale"));
 
         SyncController.SyncRequest request = new SyncController.SyncRequest();
-        
-        AttemptController.AttemptRequest attNew = new AttemptController.AttemptRequest();
-        attNew.setClientRequestId(clientReqNew);
-        attNew.setCourseId("course_1");
-        attNew.setLessonId("lesson_1");
-        attNew.setQuestionId("q_new");
-        attNew.setQuestionVersionId("q_new_v1");
-        attNew.setSelectedAnswer("CorrectNew");
-        attNew.setResponseTimeMs(1500);
-
-        AttemptController.AttemptRequest attDup = new AttemptController.AttemptRequest();
-        attDup.setClientRequestId(clientReqDup);
-        attDup.setCourseId("course_1");
-        attDup.setLessonId("lesson_1");
-        attDup.setQuestionId("q_dup");
-        attDup.setQuestionVersionId("q_dup_v1");
-        attDup.setSelectedAnswer("Xin chào");
-        attDup.setResponseTimeMs(1000);
-
-        AttemptController.AttemptRequest attStale = new AttemptController.AttemptRequest();
-        attStale.setClientRequestId(clientReqStale);
-        attStale.setCourseId("course_1");
-        attStale.setLessonId("lesson_1");
-        attStale.setQuestionId("q_stale");
-        attStale.setQuestionVersionId("q_stale_v1_old");
-        attStale.setSelectedAnswer("CorrectStale");
-        attStale.setResponseTimeMs(2000);
-
-        request.setAttempts(Arrays.asList(attNew, attDup, attStale));
+        request.setAttempts(Arrays.asList(
+                attempt(clientReqNew, "q_new", "q_new_v1", "CorrectNew"),
+                attempt(clientReqDup, "q_dup", "q_dup_v1", "Hello"),
+                attempt(clientReqStale, "q_stale", "q_stale_v1_old", "CorrectStale")
+        ));
 
         mockMvc.perform(post("/api/v1/sync/attempts")
                 .header("Authorization", validToken)
@@ -148,5 +114,30 @@ public class SyncAttemptsIntegrationTest extends BaseIntegrationTest {
 
         Optional<QuestionAttempt> savedStale = questionAttemptRepository.findByUserIdAndClientRequestId(userId, clientReqStale);
         assertFalse(savedStale.isPresent());
+    }
+
+    private AttemptController.AttemptRequest attempt(String clientRequestId, String questionId, String questionVersionId, String selectedAnswer) {
+        AttemptController.AttemptRequest attempt = new AttemptController.AttemptRequest();
+        attempt.setClientRequestId(clientRequestId);
+        attempt.setDeviceId("device_123");
+        attempt.setCourseId("course_1");
+        attempt.setLessonId("lesson_1");
+        attempt.setLessonVersionId("lesson_1_v1");
+        attempt.setQuestionId(questionId);
+        attempt.setQuestionVersionId(questionVersionId);
+        attempt.setSelectedAnswer(selectedAnswer);
+        attempt.setResponseTimeMs(1500);
+        attempt.setAnsweredAt(LocalDateTime.parse("2026-06-23T10:00:00"));
+        return attempt;
+    }
+
+    private AttemptController.QuestionDto question(String questionId, String versionId, String correctAnswer) {
+        AttemptController.QuestionDto question = new AttemptController.QuestionDto();
+        question.setQuestionId(questionId);
+        question.setCorrectAnswer(correctAnswer);
+        question.setPrompt("Prompt");
+        question.setType("multiple_choice");
+        question.setVersionId(versionId);
+        return question;
     }
 }

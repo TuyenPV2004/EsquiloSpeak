@@ -105,6 +105,24 @@ public class Sm2SchedulerTest {
     }
 
     @Test
+    public void testCalculateNextReview_Quality5_Easy() {
+        ReviewItem item = new ReviewItem("rev_1", "user_1", "en_for_vi", "hello", "vocabulary", fixedNow);
+        item.setEaseFactor(2.5);
+        item.setIntervalDays(8);
+        item.setRepetitionCount(3);
+
+        Sm2Scheduler.calculateNextReview(item, 5, clock);
+
+        assertEquals(4, item.getRepetitionCount());
+        assertEquals(20, item.getIntervalDays());
+        assertEquals(fixedNow.plusDays(20), item.getNextReviewAt());
+        assertEquals(2.6, item.getEaseFactor(), 0.01);
+        assertEquals(0, item.getLapseCount());
+        assertEquals("easy", item.getLastResult());
+        assertEquals(100.0, item.getMasteryScore(), 0.01);
+    }
+
+    @Test
     public void testCalculateNextReview_EaseFactorMinimumBound() {
         ReviewItem item = new ReviewItem("rev_1", "user_1", "en_for_vi", "hello", "vocabulary", fixedNow);
         item.setEaseFactor(1.3);
@@ -118,5 +136,11 @@ public class Sm2SchedulerTest {
         assertEquals(1, item.getLapseCount());
         assertEquals("again", item.getLastResult());
         assertEquals(0.0, item.getMasteryScore());
+    }
+
+    @Test
+    public void testCalculateMastery_ClampsToZeroAndOneHundred() {
+        assertEquals(0.0, Sm2Scheduler.calculateMastery(0, 1.3, 10));
+        assertEquals(100.0, Sm2Scheduler.calculateMastery(10, 3.0, 0));
     }
 }

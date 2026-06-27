@@ -55,31 +55,13 @@ public class ProgressController {
             @PathVariable("lessonId") String lessonId,
             @RequestAttribute("userId") String userId) {
 
-        try {
-            progressService.completeLesson(userId, courseId, lessonId);
+        progressService.completeLesson(userId, courseId, lessonId);
 
-            String userHash = HmacUtil.hashUserId(userId, hashSecret);
-            log.info("{\"type\":\"analytics\",\"eventName\":\"lesson_completed\",\"userHash\":\"{}\",\"courseId\":\"{}\",\"lessonId\":\"{}\"}",
-                    userHash, courseId, lessonId);
+        String userHash = HmacUtil.hashUserId(userId, hashSecret);
+        log.info("{\"type\":\"analytics\",\"eventName\":\"lesson_completed\",\"userHash\":\"{}\",\"courseId\":\"{}\",\"lessonId\":\"{}\"}",
+                userHash, courseId, lessonId);
 
-            return ResponseEntity.ok(Map.of("success", true));
-        } catch (org.springframework.web.server.ResponseStatusException e) {
-            String errorCode;
-            if (e.getStatusCode() == org.springframework.http.HttpStatus.NOT_FOUND) {
-                errorCode = "LESSON_NOT_FOUND";
-            } else if (e.getStatusCode() == org.springframework.http.HttpStatus.CONFLICT) {
-                errorCode = "EMPTY_LESSON";
-            } else if (e.getStatusCode() == org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY) {
-                errorCode = "LESSON_INCOMPLETE";
-            } else {
-                errorCode = "GENERIC_ERROR";
-            }
-            return ResponseEntity.status(e.getStatusCode())
-                    .body(Map.of("error", Map.of(
-                            "code", errorCode,
-                            "message", e.getReason() != null ? e.getReason() : e.getMessage()
-                    )));
-        }
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
     @GetMapping("/courses/{courseId}/progress/summary")

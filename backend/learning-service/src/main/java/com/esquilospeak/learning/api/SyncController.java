@@ -1,23 +1,25 @@
 package com.esquilospeak.learning.api;
 
-import com.esquilospeak.learning.domain.QuestionAttempt;
-import com.esquilospeak.learning.domain.ReviewItem;
-import com.esquilospeak.learning.infrastructure.QuestionAttemptRepository;
-import com.esquilospeak.learning.infrastructure.ReviewItemRepository;
+import com.esquilospeak.learning.service.AttemptSubmissionOperations;
+import com.esquilospeak.learning.util.HmacUtil;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Valid;
+import jakarta.validation.Validator;
+import jakarta.validation.constraints.NotEmpty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import com.esquilospeak.learning.client.ContentClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import com.esquilospeak.learning.util.HmacUtil;
-import java.time.Clock;
-import com.esquilospeak.learning.service.Sm2Scheduler;
-import com.esquilospeak.learning.service.ReviewItemService;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -29,124 +31,40 @@ public class SyncController {
     private String hashSecret;
 
     @Autowired
-    private QuestionAttemptRepository questionAttemptRepository;
+    private AttemptSubmissionOperations attemptSubmissionService;
 
     @Autowired
-    private ReviewItemService reviewItemService;
-
-    @Autowired
-    private ContentClient contentClient;
-
-    @Autowired
-    private Clock clock;
+    private Validator validator;
 
     @PostMapping("/sync/attempts")
     public ResponseEntity<SyncResponse> syncAttempts(
             @RequestAttribute("userId") String userId,
-            @RequestBody SyncRequest request) {
+            @Valid @RequestBody SyncRequest request) {
 
         List<SyncResult> results = new ArrayList<>();
         int syncedCount = 0;
 
-        if (request.getAttempts() != null) {
-            for (AttemptController.AttemptRequest attemptReq : request.getAttempts()) {
-                String clientRequestId = attemptReq.getClientRequestId();
-                try {
-                    // 1. Idempotency Check (Duplicate check)
-                    Optional<QuestionAttempt> existing = questionAttemptRepository.findByUserIdAndClientRequestId(userId, clientRequestId);
-                    if (existing.isPresent()) {
-                        results.add(new SyncResult(clientRequestId, "DUPLICATE", null, null));
-                        continue;
-                    }
-
-                    // Kiểm tra questionVersionId của client
-                    if (attemptReq.getQuestionVersionId() == null || attemptReq.getQuestionVersionId().isBlank()) {
-                        results.add(new SyncResult(clientRequestId, "FAILED", "MISSING_QUESTION_VERSION", "questionVersionId is required to submit an attempt."));
-                        continue;
-                    }
-
-                    // 2. Fetch Question details
-                    AttemptController.QuestionDto question = contentClient.getQuestion(attemptReq.getQuestionId());
-                    if (question == null) {
-                        results.add(new SyncResult(clientRequestId, "FAILED", "QUESTION_NOT_FOUND", "Question not found in content-service."));
-                        continue;
-                    }
-
-                    // Kiểm tra versionId của server
-                    if (question.getVersionId() == null || question.getVersionId().isBlank()) {
-                        results.add(new SyncResult(clientRequestId, "RETRYABLE_FAILED", "QUESTION_VERSION_MISSING", "Question version is missing in content-service."));
-                        continue;
-                    }
-
-                    // 3. Audit question version bằng Objects.equals
-                    if (!java.util.Objects.equals(attemptReq.getQuestionVersionId(), question.getVersionId())) {
-                        results.add(new SyncResult(clientRequestId, "FAILED", "STALE_CONTENT", "The question version on the client is stale. Please refresh content."));
-                        continue;
-                    }
-
-                    // 4. Validate speaking self-review attempt
-                    boolean isCorrect;
-                    boolean isSpeaking = "speaking".equalsIgnoreCase(question.getType());
-
-                    if ("SPOKEN_SELF_REVIEWED".equals(attemptReq.getSelectedAnswer())) {
-                        if (!isSpeaking) {
-                            results.add(new SyncResult(clientRequestId, "FAILED", "INVALID_ATTEMPT_TYPE", "Self-reviewed answers are only allowed for speaking questions."));
-                            continue;
-                        }
-                        isCorrect = true;
-                    } else {
-                        if (isSpeaking) {
-                            results.add(new SyncResult(clientRequestId, "FAILED", "INVALID_ATTEMPT_TYPE", "Speaking questions must be answered with SPOKEN_SELF_REVIEWED."));
-                            continue;
-                        }
-                        isCorrect = attemptReq.getSelectedAnswer() != null &&
-                                attemptReq.getSelectedAnswer().trim().equalsIgnoreCase(question.getCorrectAnswer().trim());
-                    }
-
-                    // 5. Save attempt
-                    String attemptId = "att_" + UUID.randomUUID().toString().replace("-", "");
-                    LocalDateTime answeredAt = attemptReq.getAnsweredAt() != null ? attemptReq.getAnsweredAt() : LocalDateTime.now(clock);
-                    
-                    QuestionAttempt attempt = new QuestionAttempt(
-                            attemptId,
-                            clientRequestId,
-                            userId,
-                            attemptReq.getCourseId(),
-                            attemptReq.getLessonId(),
-                            attemptReq.getQuestionId(),
-                            attemptReq.getQuestionVersionId(),
-                            attemptReq.getSelectedAnswer(),
-                            isCorrect,
-                            attemptReq.getResponseTimeMs(),
-                            answeredAt
-                    );
-
-                    try {
-                        questionAttemptRepository.save(attempt);
-                    } catch (org.springframework.dao.DataIntegrityViolationException dive) {
-                        results.add(new SyncResult(clientRequestId, "DUPLICATE", null, null));
-                        continue;
-                    }
-
-                    // 6. SM-2 Scheduling
-                    if (!isSpeaking) {
-                        reviewItemService.upsertReviewItemFromAttempt(
-                                userId,
-                                attemptReq.getCourseId(),
-                                question,
-                                isCorrect,
-                                attemptReq.isUsedHint(),
-                                attemptReq.getResponseTimeMs(),
-                                answeredAt
-                        );
-                    }
-
-                    results.add(new SyncResult(clientRequestId, "SYNCED", null, null));
-                    syncedCount++;
-
-                } catch (Exception e) {
-                    results.add(new SyncResult(clientRequestId, "FAILED", "UNKNOWN_ERROR", e.getMessage()));
+        for (AttemptController.AttemptRequest attemptReq : request.getAttempts()) {
+            String clientRequestId = attemptReq != null ? attemptReq.getClientRequestId() : null;
+            try {
+                if (attemptReq == null) {
+                    results.add(new SyncResult(null, "FAILED", "INVALID_ATTEMPT_REQUEST", "Attempt request is missing required fields."));
+                    continue;
                 }
+
+                Set<ConstraintViolation<AttemptController.AttemptRequest>> violations = validator.validate(attemptReq);
+                if (!violations.isEmpty()) {
+                    results.add(new SyncResult(clientRequestId, "FAILED", "INVALID_ATTEMPT_REQUEST", "Attempt request is missing required fields."));
+                    continue;
+                }
+
+                SyncResult result = attemptSubmissionService.syncAttempt(userId, attemptReq);
+                results.add(result);
+                if ("SYNCED".equals(result.getStatus())) {
+                    syncedCount++;
+                }
+            } catch (Exception e) {
+                results.add(new SyncResult(clientRequestId, "RETRYABLE_FAILED", "UNKNOWN_ERROR", e.getMessage()));
             }
         }
 
@@ -160,12 +78,8 @@ public class SyncController {
         return ResponseEntity.ok(new SyncResponse(true, results, syncedCount));
     }
 
-
-
-
-
-    // Request/Response DTO classes
     public static class SyncRequest {
+        @NotEmpty
         private List<AttemptController.AttemptRequest> attempts;
 
         public List<AttemptController.AttemptRequest> getAttempts() { return attempts; }
@@ -190,7 +104,7 @@ public class SyncController {
 
     public static class SyncResult {
         private String clientRequestId;
-        private String status; // SYNCED, DUPLICATE, FAILED
+        private String status;
         private String errorCode;
         private String message;
 
